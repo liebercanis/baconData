@@ -60,6 +60,7 @@ void openFiles()
     string fullName =  string( dirName.Data())  + string("/")+name;
     ifstream* in = new ifstream(fullName,std::ios::in);
     if(in->is_open()) streams.push_back(in);
+    brun->detList[streams.size()-1]->SetName(tag.c_str());
     brun->detList[streams.size()-1]->description=TString(tag.c_str());
 
   }
