@@ -77,7 +77,7 @@ void closeFiles()
 
 void readRaw(TString runName = "pmtCh1")
 {
-  TFile* fout = new TFile(Form("%s.root",runName.Data()),"recreate");
+  TFile* fout = new TFile(Form("rootData/%s.root",runName.Data()),"recreate");
   brun = new TBRawRun(runName);
   brun->timeUnit=2; // ns
   cout << " run name " << brun->GetName() << endl;
