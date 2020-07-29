@@ -1,3 +1,4 @@
+// 
 {
   printf("\n this is rootlogon for bacon \n");
   TString arch=gSystem->GetBuildArch();
@@ -11,4 +12,3 @@
   int iload = gSystem->Load("bobj/libBaconData.so");
   printf(" loaded libBaconData = %i zero is success! \n",iload);
 }
-

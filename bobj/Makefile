@@ -1,8 +1,6 @@
-# makefile for captRoot libcaptRoot.so 
-# MGold, Jan 2016
 # not yet ported to OSX!
 ########################################################
-LIBNAME :=baconData
+LIBNAME :=BaconData
 ARCH  = $(shell root-config --arch)
 include $(ROOTSYS)/etc/Makefile.arch
 
