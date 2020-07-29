@@ -47,6 +47,7 @@ void openFiles()
   cout << dirName << endl;
   TSystemDirectory dir("dataFiles",dirName);
   TList *files = dir.GetListOfFiles();
+  files->ls();
 
   TIter next(files);
   TSystemFile *file;
@@ -59,10 +60,12 @@ void openFiles()
     string fullName =  string( dirName.Data())  + string("/")+name;
     ifstream* in = new ifstream(fullName,std::ios::in);
     if(in->is_open()) streams.push_back(in);
-    brun->detList[streams.size()-1]->description=TString(name.c_str());
+    brun->detList[streams.size()-1]->description=TString(tag.c_str());
 
   }
-  printf("opened %ld files \n",streams.size());
+  printf("opened %ld files \n defined detectors: \n",streams.size());
+  for(unsigned  i=0; i< brun->detList.size(); ++i)  brun->detList[i]->print();
+
 }
 
 
@@ -72,10 +75,10 @@ void closeFiles()
 }
 
 
-void readRaw(TString runName = "run1")
+void readRaw(TString runName = "pmtCh1")
 {
   TFile* fout = new TFile(Form("%s.root",runName.Data()),"recreate");
-  brun = new TBRawRun("run1");
+  brun = new TBRawRun(runName);
   brun->timeUnit=2; // ns
   cout << " run name " << brun->GetName() << endl;
   openFiles();

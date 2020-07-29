@@ -24,6 +24,7 @@ class TBRawRun: public TNamed {
     Int_t run;
     TTree *btree;
     int timeUnit; //ns
+    TBRawEvent det3;
     TBRawEvent det2;
     TBRawEvent det1;
     TBRawEvent det0;

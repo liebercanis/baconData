@@ -15,14 +15,19 @@ using namespace std;
 class TBRawEvent: public TNamed {
 	public:
     TBRawEvent(TString detName = "det0");
-    //		~TBRawEvent();
+	//		~TBRawEvent();
+	// methods
+	void clear();
+	void print() 
+	{ 
+		cout << this->GetName() << "  " << description << endl; 
+	}
 
-		void clear();
-		// data elements
+	// data elements
     TString description;
-    Int_t   event;
-		std::vector<Double_t> digi;		 
-		ClassDef(TBRawEvent,1)
+	Int_t   event;
+	std::vector<Double_t> digi;		 
+	ClassDef(TBRawEvent,1)
 };
 #endif
 
