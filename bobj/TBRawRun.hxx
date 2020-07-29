@@ -20,7 +20,7 @@ class TBRawRun: public TNamed {
     //~TBRawRun();
 
     void clear();
-    enum {NDET=3};
+    enum {NDET=4};
     Int_t run;
     TTree *btree;
     int timeUnit; //ns

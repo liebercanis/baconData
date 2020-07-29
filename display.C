@@ -1,5 +1,5 @@
 ////////////////////////////////////////////////////////
-enum {NDET=3};
+enum {NDET=4};
 TTree *btree;
 TBRawEvent *detList[NDET];
 TH1D *hevent[NDET];
@@ -7,7 +7,7 @@ TString runTag;
 
 void openFile() {
   // open ouput file and make some histograms
-  TString fileName; fileName.Form("%s.root",runTag.Data());
+  TString fileName; fileName.Form("rootData/%s.root",runTag.Data());
   printf(" looking for file %s\n",fileName.Data());
   TFile *fin = new TFile(fileName,"readonly");
   if(fin->IsZombie()) {
@@ -16,12 +16,18 @@ void openFile() {
   }
 
   fin->GetObject("BTree",btree);
-  detList[0] = new TBRawEvent("det6");
-  detList[1] = new TBRawEvent("det4");
-  detList[2]= new TBRawEvent("det2");
-  btree->SetBranchAddress("det6", &detList[0]);
-  btree->SetBranchAddress("det4", &detList[1]);
-  btree->SetBranchAddress("det2", &detList[2]);
+  TObjArray *brList = btree->GetListOfBranches();
+
+  TIter next(brList);
+  TBranch *aBranch=NULL;
+  int idet=0;
+
+  while( ( aBranch = (TBranch *) next() ) ) {
+    detList[idet] = new TBRawEvent(aBranch->GetName());
+    btree->SetBranchAddress(aBranch->GetName() , &detList[idet]);
+    ++idet;
+  }
+
   for(unsigned id=0; id<NDET; ++id) hevent[id]=NULL;
   cout << " number of entries in BTree is " <<  btree->GetEntries() << endl;
   btree->GetListOfBranches()->ls();
@@ -53,7 +59,7 @@ void next(int ievent=0) {
   eventDisplay(ievent);
 }
 
-void display(TString tag = "run1") {
+void display(TString tag = "7_27_2020") {
   runTag = tag;
   openFile();
   TFile *fout = new TFile( Form("display%s",tag.Data()),"recreate");

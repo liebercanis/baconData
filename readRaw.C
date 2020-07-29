@@ -60,6 +60,9 @@ void openFiles()
     string fullName =  string( dirName.Data())  + string("/")+name;
     ifstream* in = new ifstream(fullName,std::ios::in);
     if(in->is_open()) streams.push_back(in);
+    TBranch *branch = brun->btree->GetBranch(brun->detList[streams.size()-1]->GetName());
+    branch->SetName(tag.c_str());
+    branch->SetTitle(tag.c_str());
     brun->detList[streams.size()-1]->SetName(tag.c_str());
     brun->detList[streams.size()-1]->description=TString(tag.c_str());
 
@@ -76,7 +79,7 @@ void closeFiles()
 }
 
 
-void readRaw(TString runName = "pmtCh1")
+void readRaw( Long64_t maxRead=0, TString runName = "7_27_2020" )
 {
   TFile* fout = new TFile(Form("rootData/%s.root",runName.Data()),"recreate");
   brun = new TBRawRun(runName);
@@ -86,8 +89,11 @@ void readRaw(TString runName = "pmtCh1")
   while( streams[0]->good()) { 
     readEvent(); 
     if(int(brun->btree->GetEntries())%100==0) printf("... %lld \n",brun->btree->GetEntries() );
+    if(maxRead>0 && brun->btree->GetEntries()> maxRead ) break;
   }
+  printf(" finished  %lld \n",brun->btree->GetEntries() );
   closeFiles();
+  brun->btree->GetListOfBranches()->ls();
   fout->ls();
   fout->Write();
 }
