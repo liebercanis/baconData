@@ -12,8 +12,8 @@ using namespace std;
 
 void readEvent() 
 {
+  brun->detListClear();
   char line[256];
-
   for(unsigned is =0; is<streams.size(); ++is ) {
     TBRawEvent* rawEv = brun->detList[is];
     //cout << is << " for "  << rawEv->description  << endl;
@@ -34,10 +34,9 @@ void readEvent()
         rawEv->digi.push_back(sv->GetString().Atof());
       }
     }
-    //printf (" readEvent for %s digis  %lu \n",rawEv->GetName(),rawEv->digi.size());
+    //printf (" readEvent %i for %s digi.size  %lu \n",is,rawEv->GetName(),rawEv->digi.size());
   }
   brun->fill();
-  brun->detListClear();
 }
 
 
@@ -68,7 +67,6 @@ void openFiles()
 
   }
   printf("opened %ld files \n defined detectors: \n",streams.size());
-  for(unsigned  i=0; i< brun->detList.size(); ++i)  brun->detList[i]->print();
 
 }
 

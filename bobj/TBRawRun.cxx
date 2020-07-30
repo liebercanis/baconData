@@ -34,7 +34,7 @@ void TBRawRun::clear()
 
 void TBRawRun::detListClear() 
 {
-  for(unsigned i=0; i<3; ++i ) detList[i]->clear(); 
+  for(unsigned i=0; i<NDET; ++i ) detList[i]->clear(); 
 }
 
 
