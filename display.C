@@ -4,6 +4,7 @@ TTree *btree;
 TBRawEvent *detList[NDET];
 TH1D *hevent[NDET];
 TString runTag;
+TCanvas *can;
 
 void openFile() {
   // open ouput file and make some histograms
@@ -45,21 +46,30 @@ void eventDisplay(Int_t  ievent=0)
   // fill histograms
   for(unsigned id=0; id<NDET; ++id) for(unsigned i=0; i< nsamples ; ++i) hevent[id]->SetBinContent(i+1,detList[id]->digi[i]);
   
-  TCanvas *can = new TCanvas(Form("%sEv%i",runTag.Data(),ievent),Form(" run %s Event %i",runTag.Data(),ievent));
+  can = new TCanvas(Form("%sEv%i",runTag.Data(),ievent),Form(" run %s Event %i",runTag.Data(),ievent));
   can->Divide(1,NDET);
   for(unsigned id=0; id<NDET; ++id) {
     can->cd(id+1);
     hevent[id]->Draw();
   }
 
-
 }
+
 
 void next(int ievent=0) {
   eventDisplay(ievent);
 }
 
-void display(TString tag = "7_27_2020") {
+void plots(int nplot=10) {
+
+  for(int i=0; i<nplot; ++i ){
+    next(i);
+    can->Print(".png");
+  }
+
+}
+
+void display(TString tag = "MuTrigger") {
   runTag = tag;
   openFile();
   TFile *fout = new TFile( Form("display%s",tag.Data()),"recreate");
