@@ -61,11 +61,11 @@ void readEvent()
 }
 
 
-void openFiles() 
+unsigned openFiles() 
 {
   TString dirName(Form("data/%s",brun->GetName()));
-  cout << dirName << endl;
-  TSystemDirectory dir("dataFiles",dirName);
+  cout << "dirName " << dirName << endl;
+  TSystemDirectory dir("rawdir",dirName);
   TList *files = dir.GetListOfFiles();
 
   TIter next(files);
@@ -73,6 +73,7 @@ void openFiles()
   while( (file = (TSystemFile*) next()) ) {
     string name = string(file->GetName());
     string exten  = name.substr( name.find_last_of(".")+1 );
+    cout << " name " << name << " ext " << exten << endl;
     if(exten!=string("txt")) continue;
     string tag = name.substr( 0, name.find_last_of(".") );
     cout << " file is " << name << " tag  " << tag << endl;
@@ -83,6 +84,7 @@ void openFiles()
 
   }
   printf("opened %ld files \n",streams.size());
+  return streams.size();
 }
 
 
@@ -95,9 +97,9 @@ void closeFiles()
 void readRaw(TString runName = "run1")
 {
   TFile* fout = new TFile(Form("%s.root",runName.Data()),"recreate");
-  brun = new TBRawRun("run1");
+  brun = new TBRawRun(runName);
   cout << " run name " << brun->GetName() << endl;
-  openFiles();
+  if(openFiles()<1) return;
   while( streams[0]->good()) { 
     readEvent(); 
     if(int(brun->btree->GetEntries())%100==0) printf("... %lld \n",brun->btree->GetEntries() );

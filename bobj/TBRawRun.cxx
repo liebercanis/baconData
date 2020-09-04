@@ -14,7 +14,7 @@ TBRawRun::TBRawRun(TString runName ): TNamed(runName,runName)
   detList.push_back(&det3);
 
   for(unsigned i=0; i<NDET; ++i ) {
-    cout << " btree adding branh " << detList[i]->GetName() << endl;
+    cout << " btree adding branch " << detList[i]->GetName() << endl;
     btree->Branch(detList[i]->GetName(),detList[i]);
   }
   cout << " TBRawRun tree " << btree->GetName() << endl;
