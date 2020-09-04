@@ -42,7 +42,7 @@ void readEvent()
 
 void openFiles() 
 {
-  TString dirName(Form("data/%s",brun->GetName()));
+  TString dirName(Form("data/LED_Trig/%s",brun->GetName()));
   cout << dirName << endl;
   TSystemDirectory dir("dataFiles",dirName);
   TList *files = dir.GetListOfFiles();

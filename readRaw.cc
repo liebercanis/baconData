@@ -96,7 +96,7 @@ void closeFiles()
 
 void readRaw(TString runName = "run1")
 {
-  TFile* fout = new TFile(Form("%s.root",runName.Data()),"recreate");
+  TFile* fout = new TFile(Form("rootData/%s.root",runName.Data()),"recreate");
   brun = new TBRawRun(runName);
   cout << " run name " << brun->GetName() << endl;
   if(openFiles()<1) return;
