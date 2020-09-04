@@ -100,7 +100,7 @@ void anaSum::analyze(Long64_t nmax)
       double baseline = sdigi[0.5*nsamples];
       //cout << " idet " << id << " baseline " << baseline << endl;
       for (int ibin=0; ibin < nsamples ; ++ibin) { 
-        double qbin = + vsign[id]*(detList[id]->digi[ibin] -  baseline);
+        double qbin = vsign[id]*(detList[id]->digi[ibin] -  baseline);
         hSumWave[id]->SetBinContent(ibin, hSumWave[id]->GetBinContent(ibin)+qbin);
         hSumWave[id]->SetBinError(ibin, sqrt(pow(hSumWave[id]->GetBinError(ibin), 2)+pow(qbin, 2)));
       }
