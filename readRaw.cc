@@ -73,15 +73,16 @@ unsigned openFiles()
   while( (file = (TSystemFile*) next()) ) {
     string name = string(file->GetName());
     string exten  = name.substr( name.find_last_of(".")+1 );
-    cout << " name " << name << " ext " << exten << endl;
     if(exten!=string("txt")) continue;
     string tag = name.substr( 0, name.find_last_of(".") );
-    cout << " file is " << name << " tag  " << tag << endl;
     string fullName =  string( dirName.Data())  + string("/")+name;
     ifstream* in = new ifstream(fullName,std::ios::in);
     if(in->is_open()) streams.push_back(in);
     brun->detList[streams.size()-1]->description=TString(name.c_str());
-
+    branch->SetName(tag.c_str());
+    branch->SetTitle(tag.c_str());
+    brun->detList[streams.size()-1]->SetName(tag.c_str());
+    brun->detList[streams.size()-1]->description=TString(tag.c_str());
   }
   printf("opened %ld files \n",streams.size());
   return streams.size();

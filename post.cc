@@ -61,7 +61,7 @@ void anaPost(Long64_t nev) {
 
 
 
-void post(Long64_t nev=0, TString tag = "MuTrigger") {
+void post(Long64_t nev=0, TString tag = "3.0VLED_51.0VSiPM") {
   
   brun = new TBRun(tag);
   brun->det0.SetName(Form("wave%i",1));
@@ -90,8 +90,9 @@ void post(Long64_t nev=0, TString tag = "MuTrigger") {
   anaPost(nev);
 
   TCanvas *can = new TCanvas(Form("hitTime%s",tag.Data()),Form("hitTime%s",tag.Data()));
-  hHitTime[0]->Draw(""); 
-  for(unsigned id=1; id<NDET; ++id) { 
+  
+  hHitTime[1]->Draw(""); 
+  for(unsigned id=0; id<NDET; ++id) { 
     hHitTime[id]->Draw("sames");
     gPad->Update();
     TPaveStats *st = (TPaveStats*) hHitTime[id]->FindObject("stats");
@@ -99,8 +100,8 @@ void post(Long64_t nev=0, TString tag = "MuTrigger") {
   }
 
   TCanvas *canq = new TCanvas(Form("hitQ%s",tag.Data()),Form("hitQ%s",tag.Data()));
-  hHitQ[0]->Draw(""); 
-  for(unsigned id=1; id<NDET; ++id) { 
+  hHitQ[1]->Draw(""); 
+  for(unsigned id=0; id<NDET; ++id) { 
     hHitQ[id]->Draw("sames");
     gPad->Update();
     TPaveStats *stq = (TPaveStats*) hHitQ[id]->FindObject("stats");
