@@ -79,6 +79,7 @@ unsigned openFiles()
     ifstream* in = new ifstream(fullName,std::ios::in);
     if(in->is_open()) streams.push_back(in);
     brun->detList[streams.size()-1]->description=TString(name.c_str());
+    TBranch *branch = brun->btree->GetBranch(brun->detList[streams.size()-1]->GetName());
     branch->SetName(tag.c_str());
     branch->SetTitle(tag.c_str());
     brun->detList[streams.size()-1]->SetName(tag.c_str());
