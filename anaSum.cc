@@ -51,9 +51,10 @@ class anaSum
     virtual ~anaSum() { ; }
     bool openFile();
     void analyze(Long64_t maxEvents);
-    
+
     // summed wave histograms
     TH1D *hSumWave[NDET];
+    TH1D *hSumEvent[NDET];
 
 };
 
@@ -72,38 +73,90 @@ anaSum::anaSum(Int_t maxEvents, TString tag)
   btree->GetEntry(0);
   int nsamples = (int) detList[0]->digi.size();
   cout << tag << " samples " << nsamples << endl;
-  
-  for(unsigned id=0; id<NDET; ++id) hSumWave[id] = new TH1D(Form("SumWave%s",detList[id]->GetName()),Form("Wave%s",detList[id]->GetName()), nsamples,0, nsamples);
+
+  for(unsigned id=0; id<NDET; ++id) hSumWave[id] = new TH1D(Form("SumWave%s",detList[id]->GetName()),Form("Sum Wave%s",detList[id]->GetName()), nsamples,0, nsamples);
+
   analyze(maxEvents);
 
   fin->Close();
   fout->Write();
+
+  TString cname;
+  cname.Form("EventWave%s",tag.Data());
+  TCanvas *can2 = new TCanvas(cname,cname);
+  can2->Divide(1,4);
+  for(unsigned id=0; id<NDET; ++id) {
+    can2->cd(id+1);
+    hSumWave[id]->Draw(); 
+  }
+  can2->Print(".pdf");
+  //fout->Close()
+
+
+  cname.Form("EventSum%s",tag.Data());
+  TCanvas *can = new TCanvas(cname,cname);
+  can->Divide(2,2);
+  gStyle->SetOptLogy();
+  for(unsigned id=0; id<NDET; ++id) {
+    can->cd(id+1);
+    hSumEvent[id]->Draw(); 
+  }
+  can->Print(".pdf");
+
+ 
   //fout->Close()
 
 }
 
 void anaSum::analyze(Long64_t nmax)
 {
-  double vsign[NDET]={ -1., 1., 1., 1. };
+  double vsign[NDET]={ 1., 1., 1., 1. };
   //
   Long64_t nentries = btree->GetEntries();
   if(nmax>0) nentries=nmax;
   cout << " analyze " << nentries << endl;
   for(Long64_t ievent=0; ievent< nentries; ++ievent) {
+    btree->GetEntry(ievent);
     if (ievent%100==0) printf(" ... %lld \n", ievent);
     // loop over detectors
+    //
+    if(ievent==0) {
+      printf(" det names \n");
+      for(unsigned id=0; id<NDET; ++id) { 
+        if(TString(detList[id]->GetName()).Contains(TString("1"))) {
+          vsign[id]=-1.0;
+          hSumEvent[id] = new TH1D(Form("SumEvent%s",detList[id]->GetName()),Form("SumEv Wave%s",detList[id]->GetName()),600,-10,50);
+        } else {
+          hSumEvent[id] = new TH1D(Form("SumEvent%s",detList[id]->GetName()),Form("SumEv Wave%s",detList[id]->GetName()),300,-1,2);
+        }
+        for(unsigned id=0; id<NDET; ++id) printf("%u %s sign %0.1f \n",id, detList[id]->GetName(), vsign[id] );
+      }
+    }
+
     for(unsigned id=0; id<NDET; ++id) {
       // get baseline copy vector to sort
       vector<double> sdigi = detList[id]->digi;
       std::sort(sdigi.begin(), sdigi.end());
       double nsamples = (double) detList[id]->digi.size();
       double baseline = sdigi[0.5*nsamples];
+      double evSum=0;
       //cout << " idet " << id << " baseline " << baseline << endl;
       for (int ibin=0; ibin < nsamples ; ++ibin) { 
         double qbin = vsign[id]*(detList[id]->digi[ibin] -  baseline);
-        hSumWave[id]->SetBinContent(ibin, hSumWave[id]->GetBinContent(ibin)+qbin);
-        hSumWave[id]->SetBinError(ibin, sqrt(pow(hSumWave[id]->GetBinError(ibin), 2)+pow(qbin, 2)));
+        evSum += qbin;
       }
+      evSum /= double(nsamples);
+      hSumEvent[id]->Fill(evSum);
+      //cout << " idet " << id << " baseline " << baseline << endl;
+      if(evSum>0.5) {
+        for (int ibin=0; ibin < nsamples ; ++ibin) { 
+          double qbin = vsign[id]*(detList[id]->digi[ibin] -  baseline);
+          hSumWave[id]->SetBinContent(ibin, hSumWave[id]->GetBinContent(ibin)+qbin);
+          hSumWave[id]->SetBinError(ibin, sqrt(pow(hSumWave[id]->GetBinError(ibin), 2)+pow(qbin, 2)));
+        }
+      }
+
+      //cout << ievent << "  " << id << " "   << detList[id]->GetName() << " " << evSum/double(nsamples) << endl;
     } // loop over dets
   } // sum over events
 }
