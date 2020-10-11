@@ -4,6 +4,7 @@
 #ifndef TBEVENT_DEFINED
 #define TBEVENT_DEFINED
 #include <iostream>
+#include <fstream>
 #include <string>
 #include <map>
 #include <TNamed.h>
@@ -22,7 +23,8 @@ class TBEvent: public TNamed {
     Long64_t event;
     double trigTime;
     Double_t energy;
-
+    
+   
     void print() {
       printf(" %s  event %lld  trigtime %f\n",this->GetName(), event, trigTime);
     }

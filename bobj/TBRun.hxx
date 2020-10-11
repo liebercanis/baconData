@@ -4,6 +4,7 @@
 #ifndef TBRUN_DEFINED
 #define TBRUN_DEFINED
 #include <iostream>
+#include <fstream>
 #include <string>
 #include <map>
 #include <TNamed.h>
@@ -18,6 +19,7 @@ using namespace std;
 class TBRun: public TNamed {
   public:
     TBRun(TString runName = "run0");
+    TBRun(TTree* btreeInit,TString runName = "run0");
     //~TBRun();
 
     void clear();
@@ -31,6 +33,9 @@ class TBRun: public TNamed {
 
     vector<TDet*> detList;
     void detListClear(); 
+
+    void dumpEvent(ofstream& dumpFile);
+ 
     void fill() {
       btree->Fill();
     }

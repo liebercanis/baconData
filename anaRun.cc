@@ -46,6 +46,7 @@ class anaRun
     double vsign[NDET];
     TTree *btree;
     TBRawEvent *detList[NDET];
+    ofstream dumpFile;
     TFile *fin;
     TFile *fout;
     TBRun *brun;
@@ -122,7 +123,7 @@ anaRun::anaRun(Int_t maxEvents, TString tag)
 
   if(!openFile()) { cout << " file with tag not found " << endl; return; }
   cout <<  " opened file with tag " << endl;
- 
+
   btree->GetEntry(0);
   for(unsigned id=0; id< NDET; ++id) {
     derivativeSigma[id]=3.0;
@@ -154,8 +155,14 @@ anaRun::anaRun(Int_t maxEvents, TString tag)
 
   brun = new TBRun(btree,tag);
 
-  printf(" ***** assigned det names ***** \n");
+  printf(" ***** assigned det names *****  %lu \n", brun->detList.size() );
   for(unsigned id=0; id<brun->detList.size() ; ++id) printf(" %i %s %s \n",id,brun->detList[id]->GetName() , detList[id]->GetName() );
+
+  // open dump file
+  dumpFile.open (Form("dump-%s.txt",brun->bevent->GetName()),ios::out);
+  dumpFile << "C****** open  dump for run " <<  brun->bevent->GetName() << endl;
+  cout << " ****** open  dump for run " <<  brun->bevent->GetName() << endl;
+
 
   for(unsigned id=0; id<NDET; ++id) { 
     hEvent[id] = new TH1D(Form("Event%s",detList[id]->GetName()),Form("Sum%s",detList[id]->GetName()), nsamples,0, nsamples);
@@ -184,7 +191,13 @@ anaRun::anaRun(Int_t maxEvents, TString tag)
 
   fin->Close();
   fout->Write();
-  //fout->Close()
+  if (dumpFile.is_open()) { 
+    cout << " ****** close dump for run " <<  brun->bevent->GetName() << endl;
+    dumpFile << "C****** close dump for run " <<  brun->bevent->GetName() << endl;
+    dumpFile.close();
+  }
+
+//fout->Close()
 
 }
 
@@ -334,6 +347,8 @@ void anaRun::analyze(Long64_t nmax)
     brun->bevent->event =ievent;
     brun->bevent->trigTime =trigTime;
     brun->fill();
+
+    if(dumpFile.is_open() ) brun->dumpEvent(dumpFile);
   } // loop over events
 }
 
