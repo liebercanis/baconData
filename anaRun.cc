@@ -42,7 +42,7 @@ class anaRun
 {
   public:
     enum {NDET=4};
-    enum {UPCROSS,DOWNCROSS};
+    enum {UPCROSS,DOWNCROSS,DOUBLEUPCROSS,DOUBLEDOWNCROSS};
     double vsign[NDET];
     TTree *btree;
     TBRawEvent *detList[NDET];
@@ -130,7 +130,7 @@ anaRun::anaRun(Int_t maxEvents, TString tag)
     vsign[id]=1.0;
     TString dname = detList[id]->GetName();
     if(dname.Contains( TString("1")))  {
-      derivativeSigma[id]=5.0;
+      derivativeSigma[id]=7.0;
       vsign[id]=-1.0;
     }
     printf(" setting  derivative Sigma for %s to %.3f \n",dname.Data(),derivativeSigma[id]);
@@ -279,6 +279,11 @@ void anaRun::analyze(Long64_t nmax)
       else peakList= simplePeaks(ddigi, id, minWidth, maxWidth, rawSigma, peakKind);
       hPeakCount->Fill(id,peakList.size());
 
+      //printf("det %i %s has %lu peaks \n",id,dname.Data(),peakList.size() );
+      //for (int ip=0; ip<int(peakList.size()); ++ip) printf(" \t ip %i start %i end %i \n",ip, std::get<0>(peakList[ip]) ,std::get<1>(peakList[ip]) );
+
+
+
        // get WMARecursive baseline weigthts 
       int maxWeightWidth=0;
       std::vector<Double_t> weight = getBaselineWeights(ddigi.size(), peakList,maxWeightWidth);
@@ -293,7 +298,7 @@ void anaRun::analyze(Long64_t nmax)
       int NWindow  = (int)detList[id]->digi.size()/8200*400;  // size is 8200
       std::vector<Double_t> baselineDigi = getBaselineWMARecursive(0,ddigi, weight, NWindow);
 
-      // zero basseline until after firt pulse
+      // zero basseline until after first pulse
       if(peakList.size()>0) for(unsigned i=0; i<= std::get<1>(peakList[0]) ; ++i ) baselineDigi[i]=0;
 
       // subract base 
@@ -326,15 +331,20 @@ void anaRun::analyze(Long64_t nmax)
      double firstCharge=0;
      int hitCount=0;
      hitMap  detHits = makeHits(peakList,peakKind,vderiv,sSigma,triggerTime,firstCharge);
+
+    printf("after makeHits detHits det %i name %s has %lu peaks \n",id,dname.Data(),detHits.size() );
+
      if (id==0) trigTime =  triggerTime;
+     int ihit=0;
      for (hitMapIter hitIter=detHits.begin(); hitIter!=detHits.end(); ++hitIter) {
         TDetHit  hiti = hitIter->second;
         Double_t hitQ = hiti.qsum;
         brun->detList[id]->hits.push_back(hiti);
         //Double_t phitQErr = phiti.qerr*timeUnit*1E9;
         Int_t width = hiti.lastBin - hiti.firstBin +1;
-        for (int ibin=hiti.firstBin; ibin <= hiti.lastBin; ++ibin) 
-          hEvPeaks[id]->SetBinContent(ibin+1, sdigi[ibin]);
+        printf(" \t ihit %i time %f start bin  %i end bin %i kind %i charge %f  \n",ihit++,hitIter->first, hiti.firstBin, hiti.lastBin, hiti.kind,hiti.qsum );
+
+        for (int ibin=hiti.firstBin; ibin <= hiti.lastBin; ++ibin) hEvPeaks[id]->SetBinContent(ibin+1, sdigi[ibin]);
         Double_t hitTime =  hiti.startTime*timeUnit*microSec-trigTime;
         Int_t istartBin =  hLife[id]->FindBin(hitTime);
         ntHit->Fill(id,detHits.size(), ++hitCount, istartBin, hiti.startTime*timeUnit*microSec, hitQ, width, hiti.qpeak, hiti.good, hiti.kind);
@@ -527,7 +537,7 @@ peakType anaRun::derivativePeaks(std::vector<Double_t> v,  Int_t idet, Int_t nsu
   std::vector<double> crossingTime;
   unsigned vsize = v.size();
   Double_t cut = derivativeSigma[idet]*rms;
-  //cout << " >>>> rms " << rms << " cut " << cut << endl;
+  cout << " in derivative peaks >>>> rms " << rms << " cut " << cut << endl;
   Double_t ncut = -derivativeSigma[idet]*rms;
   // find all crossings
   for( unsigned ibin=1; ibin< vsize; ++ibin ) {
@@ -535,7 +545,17 @@ peakType anaRun::derivativePeaks(std::vector<Double_t> v,  Int_t idet, Int_t nsu
     Double_t vi = vsign[idet]*v[ibin];
     Double_t vj = vsign[idet]*v[ibin-1];
     unsigned ctype=10;
-    if( vi>cut && vj <cut ) {
+    if(vj>cut&&vi<ncut) {
+      crossings.push_back(DOUBLEUPCROSS);
+      ctype=DOUBLEUPCROSS;
+      crossingBin.push_back(ibin);
+      crossingTime.push_back(u);
+    } else if(vj<ncut&&vi>cut) {
+      crossings.push_back(DOUBLEDOWNCROSS);
+      ctype=DOUBLEDOWNCROSS;
+      crossingBin.push_back(ibin);
+      crossingTime.push_back(u);
+    } else if( vi>cut && vj <cut ) {
       crossings.push_back(UPCROSS);
       ctype=UPCROSS;
       crossingBin.push_back(ibin);
@@ -556,8 +576,8 @@ peakType anaRun::derivativePeaks(std::vector<Double_t> v,  Int_t idet, Int_t nsu
       crossingBin.push_back(ibin);
       crossingTime.push_back(u);
     }
-    //if (idet==0&&ctype<10)  printf("\t %u vj %f vi %f cut %f cross type %u \n", ibin, vj, vi, cut, ctype );
-    //if (idet==0)  printf("\t %u vj %f vi %f cut %f  not cross  \n", ibin, vj, vi, cut );
+    //if (idet==1&&ctype<10)  printf("....... %u vj %f vi %f cut %f cross type %u \n", ibin, vj, vi, cut, ctype );
+    //if (idet==1)  printf("\t %u vj %f vi %f cut %f  not cross  \n", ibin, vj, vi, cut );
   }
 
   if(crossings.size()<4) return peakList;
@@ -572,53 +592,55 @@ peakType anaRun::derivativePeaks(std::vector<Double_t> v,  Int_t idet, Int_t nsu
 
 
   // parse crossings to make pairs 
-  unsigned ip =0; 
-  //printf("crossings %zu %E %E \n",crossings.size(),cut,ncut);
-  while ( ip<= crossings.size() -4 ) {
-    // UP UP DOWN DOWN 
-    if(crossings[ip]==UPCROSS&&crossings[ip+1]==UPCROSS&&crossings[ip+2]==DOWNCROSS&&crossings[ip+3]==DOWNCROSS) {
-      // check zero crossings
-      unsigned nzero=0;
-      for(unsigned ibin = crossingBin[ip+1]; ibin<crossingBin[ip+2]; ++ibin) if(v[ibin]>0&&v[ibin+1]<0) ++nzero;
-      if(nzero<=3) {
-        //printf(" peak %i time %f (%i %i %i %i ) nzero %u \n",ip,crossingTime[ip],crossings[ip],crossings[ip+1],crossings[ip+2],crossings[ip+3],nzero);
-        peakList.push_back( std::make_pair(crossingBin[ip],crossingBin[ip+3]) );
+  /* first find sequence of 0,2,3 crossings */
+  unsigned ip=0;
+  while ( ip<= crossings.size() -3 ) {
+     //if (idet==1)  printf("\t %i 0-type (%i,%i,%i) \n", ip, crossings[ip],crossings[ip+1],crossings[ip+2] );
+     if(crossings[ip]==UPCROSS&&crossings[ip+1]==DOUBLEUPCROSS&&crossings[ip+2]==DOUBLEDOWNCROSS) {
+        peakList.push_back( std::make_pair(crossingBin[ip],crossingBin[ip+2]) );
         peakKind.push_back(0);
-        ntDer->Fill(rms,v[crossingBin[ip]],double(crossingBin[ip+3]-crossingBin[ip]),double(0));//sigma:d0:step:dstep
+        //printf(" det %i make peak  (%i,%i) kind %i  \n",idet,crossingBin[ip],crossingBin[ip+2],peakKind[peakKind.size()-1]);
+        ntDer->Fill(rms,v[crossingBin[ip]],double(crossingBin[ip+2]-crossingBin[ip]),double(0));//sigma:d0:step:dstep
         crossingFound[ip]=true;
         crossingFound[ip+1]=true;
         crossingFound[ip+2]=true;
-        crossingFound[ip+3]=true;
-        ip=ip+4;
-      } else 
-        ++ip;
+        ip=ip+3;
+     } else {
+       ++ip;
+     }
+  }
+
+  
+  /* next find sequence of 0,0,1,1 crossings */
+  ip=0;
+  while ( ip<= crossings.size() -4 ) {
+    int skip=0;
+    if(crossingFound[ip])   ++skip;
+    if(crossingFound[ip+1]) ++skip;
+    if(crossingFound[ip+2]) ++skip;
+    if(crossingFound[ip+3]) ++skip;
+    if(skip>0) {
+      ip+=skip;
+      continue;
+    }
+    //if (idet==1)  printf("\t %i 1-type (%i,%i,%i,%i) \n", ip, crossings[ip],crossings[ip+1],crossings[ip+2],crossings[ip+3]  );
+    if(crossings[ip]==UPCROSS&&crossings[ip+1]==UPCROSS&&crossings[ip+2]==DOWNCROSS&&crossings[ip+3]==DOWNCROSS) {
+      peakList.push_back( std::make_pair(crossingBin[ip],crossingBin[ip+2]) );
+      peakKind.push_back(1);
+      //printf(" det %i make peak  (%i,%i) kind %i  \n",idet,crossingBin[ip],crossingBin[ip+3],peakKind[peakKind.size()-1]);
+      ntDer->Fill(rms,v[crossingBin[ip]],double(crossingBin[ip+2]-crossingBin[ip]),double(1));//sigma:d0:step:dstep
+      crossingFound[ip]=true;
+      crossingFound[ip+1]=true;
+      crossingFound[ip+2]=true;
+      crossingFound[ip+3]=true;
+      ip=ip+4;
     } else {
       ++ip;
     }
   }
-  //printf("peaks with fours %zu  \n",peakList.size());
 
-  // pick up UP UP, DOWN DOWN cases
-  ip =0; 
-  while ( ip<= crossings.size() -2 ) {  
-    if(!crossingFound[ip]&&!crossingFound[ip+1]) {
-      // UP UP
-      if(crossings[ip]==UPCROSS&&crossings[ip+1]==UPCROSS) {
-        //printf(" up up peak %i time %f (%i %i )\n",ip,crossingTime[ip],crossings[ip],crossings[ip+1]); 
-        peakList.push_back( std::make_pair(crossingBin[ip],crossingBin[ip+1]) );
-        peakKind.push_back(1);
-        ntDer->Fill(rms,v[crossingBin[ip]],double(crossingBin[ip+1]-crossingBin[ip]),double(1));//sigma:d0:step:dstep
-        // DOWN DOWN 
-      } else if(crossings[ip]==DOWNCROSS&&crossings[ip+1]==DOWNCROSS) {
-        //printf(" down down peak %i time %f (%i %i )\n",ip,crossingTime[ip],crossings[ip],crossings[ip+1]); 
-        peakList.push_back( std::make_pair(crossingBin[ip],crossingBin[ip+1]) );
-        peakKind.push_back(2);
-        ntDer->Fill(rms,v[crossingBin[ip]],double(crossingBin[ip+1]-crossingBin[ip]),double(2));//sigma:d0:step:dstep
-      }
-    }
-    ip=ip+2;
-  }
- 
+
+
   // return list
   return peakList;
 }
@@ -687,7 +709,7 @@ hitMap anaRun::makeHits(peakType peakList, std::vector<Int_t> peakKind, std::vec
     for (unsigned ip=0; ip<peakList.size(); ++ip) {
         unsigned klow  = std::get<0>(peakList[ip]);
         unsigned khigh = std::get<1>(peakList[ip]);
-        //printf(" hit  %u (%u,%u) kind %i length %u \n",ip,klow,khigh,peakKind[ip],khigh-klow+1);
+        //printf(" hit  %u (%u,%u) kind %i length %u ",ip,klow,khigh,peakKind[ip],khigh-klow+1);
         hHitLength->Fill(khigh-klow+1);
         if (khigh-klow+1<minLength) {
             continue;
@@ -726,7 +748,7 @@ hitMap anaRun::makeHits(peakType peakList, std::vector<Int_t> peakKind, std::vec
             firstCharge = qsum;
         }
         Double_t hitTime = dhit.startTime*timeUnit*microSec;
-        //printf(" insert  %lu (%u,%u)  \n",detHits.size(),dhit.firstBin,dhit.lastBin);
+        //printf("  insert hit  %lu time %f (%u,%u) kind %i length %u  \n",detHits.size(),hitTime,dhit.firstBin,dhit.lastBin, peakKind[ip],khigh-klow+1 );
         //for (unsigned k=klow; k<khigh; ++k) printf(" \t %u %f ; ", k, ddigi[k]);
         //cout << endl;
         detHits.insert(std::pair<Double_t, TDetHit>(hitTime, dhit));
@@ -741,6 +763,7 @@ hitMap anaRun::makeHits(peakType peakList, std::vector<Int_t> peakKind, std::vec
     triggerTime = dhit0.startTime*microSec;
     firstCharge = dhit0.qsum;
     */
+    printf(" return from makeHits with %lu made \n",detHits.size()); 
     return  detHits;
 }
 
