@@ -43,7 +43,6 @@ class anaRun
   public:
     enum {NDET=4};
     enum {UPCROSS,DOWNCROSS,DOUBLEUPCROSS,DOUBLEDOWNCROSS};
-    double vsign[NDET];
     TTree *btree;
     TBRawEvent *detList[NDET];
     ofstream dumpFile;
@@ -66,13 +65,14 @@ class anaRun
     std::vector<Double_t> getBaselineWMARecursive(Double_t ave, std::vector<Double_t> sig, std::vector<Double_t> weight, Int_t NWindow);
     peakType  derivativePeaks(std::vector<Double_t> v, Int_t idet , Int_t nwindow, Double_t rms, std::vector<Int_t>& peakKind);
     peakType  simplePeaks(std::vector<Double_t> v, Int_t idet , unsigned minWidth, unsigned maxWidth, Double_t rms, std::vector<Int_t>& peakKind);
-    void extendPeaks(std::vector<Double_t> v, peakType &peakList );
+    void extendPeaks(int idet, std::vector<Double_t> v, peakType &peakList );
 
 
     hitMap makeHits(peakType peakList, std::vector<Int_t> peakKind, std::vector<Double_t> digi, Double_t sigma, Double_t& firstTime, Double_t& firstCharge);
 
     double timeUnit;
     double derivativeSigma[NDET];
+    double vsign[NDET];
     double microSec;
     double maxLife;
     Int_t nSigma;
@@ -88,11 +88,12 @@ class anaRun
     TH1D *hEvDWave[NDET];
     TH1D *hEvSignal[NDET];
     TH1D *hEvPeaks[NDET];
+    TH1D *hEvDPeaks[NDET];
     TH1D *hBaselineWMA[NDET];
 
     TH1D *hWave[NDET];
     TH1D *hEvWeight[NDET];
-    TH1D *hDWave[NDET];
+    TH1D *hDPeaks[NDET];
     TH1D *hDNoise[NDET];
     TH1D *hSNoise[NDET];
     TH1D *hLife[NDET];
@@ -144,6 +145,7 @@ anaRun::anaRun(Int_t maxEvents, TString tag)
     hEvDWave[id] = new TH1D(Form("EvDWave%s",detList[id]->GetName()),Form("DWave%s",detList[id]->GetName()), nsamples,0, nsamples);
     hEvSignal[id] = new TH1D(Form("EvSignal%s", detList[id]->GetName()), Form("DetSignal%s", detList[id]->GetName()), nsamples, 0, nsamples);
     hEvPeaks[id] = new TH1D(Form("EvPeaks%s", detList[id]->GetName()), Form("DetPeaks%s", detList[id]->GetName()), nsamples, 0, nsamples);
+    hEvDPeaks[id] = new TH1D(Form("EvDPeaks%s", detList[id]->GetName()), Form("DerivDetPeaks%s", detList[id]->GetName()), nsamples, 0, nsamples);
     hEvWeight[id] = new TH1D(Form("EvWeight%s",detList[id]->GetName()),Form("baseline weight det %s",detList[id]->GetName()), nsamples,0, nsamples);
     hBaselineWMA[id]=new TH1D(Form("BaselineWMA%s", detList[id]->GetName()), Form("BaselineWMA%s", detList[id]->GetName()), nsamples, 0, nsamples);
   }
@@ -209,6 +211,7 @@ void anaRun::analyze(Long64_t nmax)
     hEvDWave[id]->Reset();
     hEvSignal[id]->Reset();
     hEvPeaks[id]->Reset();
+    hEvDPeaks[id]->Reset();
     hEvWeight[id]->Reset();
     hBaselineWMA[id]->Reset();
   }
@@ -311,7 +314,7 @@ void anaRun::analyze(Long64_t nmax)
       }
 
       // extend peaks to baseline subtracted wave 
-      extendPeaks(sdigi,peakList);
+      extendPeaks(id,sdigi,peakList);
       /*** peak finding */
       for(unsigned isample = 0; isample < sdigi.size(); isample++) hSNoise[id]->Fill(sdigi[isample]);
       hSNoise[id]->Fit("gaus","0Q");
@@ -327,24 +330,27 @@ void anaRun::analyze(Long64_t nmax)
       ntCal->Fill(ievent,id,rawAve,rawSigma,derAve,derSigma,sAve,sSigma);
 
       /** make hits **/
-     double triggerTime=0;
-     double firstCharge=0;
-     int hitCount=0;
-     hitMap  detHits = makeHits(peakList,peakKind,vderiv,sSigma,triggerTime,firstCharge);
+      double triggerTime=0;
+      double firstCharge=0;
+      int hitCount=0;
+      hitMap  detHits = makeHits(peakList,peakKind,vderiv,sSigma,triggerTime,firstCharge);
 
-    printf("after makeHits detHits det %i name %s has %lu peaks \n",id,dname.Data(),detHits.size() );
+      //printf("after makeHits detHits det %i name %s has %lu peaks \n",id,dname.Data(),detHits.size() );
 
-     if (id==0) trigTime =  triggerTime;
-     int ihit=0;
-     for (hitMapIter hitIter=detHits.begin(); hitIter!=detHits.end(); ++hitIter) {
+      if (id==0) trigTime =  triggerTime;
+      int ihit=0;
+      for (hitMapIter hitIter=detHits.begin(); hitIter!=detHits.end(); ++hitIter) {
         TDetHit  hiti = hitIter->second;
         Double_t hitQ = hiti.qsum;
         brun->detList[id]->hits.push_back(hiti);
         //Double_t phitQErr = phiti.qerr*timeUnit*1E9;
         Int_t width = hiti.lastBin - hiti.firstBin +1;
-        printf(" \t ihit %i time %f start bin  %i end bin %i kind %i charge %f  \n",ihit++,hitIter->first, hiti.firstBin, hiti.lastBin, hiti.kind,hiti.qsum );
+        //printf(" \t ihit %i time %f start bin  %i end bin %i kind %i charge %f  \n",ihit++,hitIter->first, hiti.firstBin, hiti.lastBin, hiti.kind,hiti.qsum );
 
-        for (int ibin=hiti.firstBin; ibin <= hiti.lastBin; ++ibin) hEvPeaks[id]->SetBinContent(ibin+1, sdigi[ibin]);
+        for (int ibin=hiti.firstBin; ibin <= hiti.lastBin; ++ibin) {
+          hEvPeaks[id]->SetBinContent(ibin+1,sdigi[ibin]);
+          hEvDPeaks[id]->SetBinContent(ibin+1,vderiv[ibin]);
+        }
         Double_t hitTime =  hiti.startTime*timeUnit*microSec-trigTime;
         Int_t istartBin =  hLife[id]->FindBin(hitTime);
         ntHit->Fill(id,detHits.size(), ++hitCount, istartBin, hiti.startTime*timeUnit*microSec, hitQ, width, hiti.qpeak, hiti.good, hiti.kind);
@@ -537,7 +543,7 @@ peakType anaRun::derivativePeaks(std::vector<Double_t> v,  Int_t idet, Int_t nsu
   std::vector<double> crossingTime;
   unsigned vsize = v.size();
   Double_t cut = derivativeSigma[idet]*rms;
-  cout << " in derivative peaks >>>> rms " << rms << " cut " << cut << endl;
+  //cout << " for det " << idet << " in derivative peaks >>>> rms " << rms << " cut " << cut << endl;
   Double_t ncut = -derivativeSigma[idet]*rms;
   // find all crossings
   for( unsigned ibin=1; ibin< vsize; ++ibin ) {
@@ -577,7 +583,7 @@ peakType anaRun::derivativePeaks(std::vector<Double_t> v,  Int_t idet, Int_t nsu
       crossingTime.push_back(u);
     }
     //if (idet==1&&ctype<10)  printf("....... %u vj %f vi %f cut %f cross type %u \n", ibin, vj, vi, cut, ctype );
-    //if (idet==1)  printf("\t %u vj %f vi %f cut %f  not cross  \n", ibin, vj, vi, cut );
+    //if (idet==1&&ibin>2350&&ibin<2450)  printf("\t %u vj %f vi %f ctype %u  \n", ibin, vj, vi, ctype );
   }
 
   if(crossings.size()<4) return peakList;
@@ -592,11 +598,12 @@ peakType anaRun::derivativePeaks(std::vector<Double_t> v,  Int_t idet, Int_t nsu
 
 
   // parse crossings to make pairs 
-  /* first find sequence of 0,2,3 crossings */
+  /* first find sequence of 0,2,x x>0 crossings */
   unsigned ip=0;
   while ( ip<= crossings.size() -3 ) {
-     //if (idet==1)  printf("\t %i 0-type (%i,%i,%i) \n", ip, crossings[ip],crossings[ip+1],crossings[ip+2] );
-     if(crossings[ip]==UPCROSS&&crossings[ip+1]==DOUBLEUPCROSS&&crossings[ip+2]==DOUBLEDOWNCROSS) {
+    int ibin = crossingBin[ip];
+     if(crossings[ip]==UPCROSS&&crossings[ip+1]==DOUBLEUPCROSS&&crossings[ip+2]>UPCROSS) {
+        //if (idet==1)  printf("\t peak %lu ibin %i type (%i,%i,%i) \n", peakList.size() ,ibin, crossings[ip],crossings[ip+1],crossings[ip+2] );
         peakList.push_back( std::make_pair(crossingBin[ip],crossingBin[ip+2]) );
         peakKind.push_back(0);
         //printf(" det %i make peak  (%i,%i) kind %i  \n",idet,crossingBin[ip],crossingBin[ip+2],peakKind[peakKind.size()-1]);
@@ -610,8 +617,10 @@ peakType anaRun::derivativePeaks(std::vector<Double_t> v,  Int_t idet, Int_t nsu
      }
   }
 
+
   
-  /* next find sequence of 0,0,1,1 crossings */
+  /* 
+  ** next find sequence of 0,0,1,1 crossings */
   ip=0;
   while ( ip<= crossings.size() -4 ) {
     int skip=0;
@@ -623,8 +632,9 @@ peakType anaRun::derivativePeaks(std::vector<Double_t> v,  Int_t idet, Int_t nsu
       ip+=skip;
       continue;
     }
-    //if (idet==1)  printf("\t %i 1-type (%i,%i,%i,%i) \n", ip, crossings[ip],crossings[ip+1],crossings[ip+2],crossings[ip+3]  );
     if(crossings[ip]==UPCROSS&&crossings[ip+1]==UPCROSS&&crossings[ip+2]==DOWNCROSS&&crossings[ip+3]==DOWNCROSS) {
+      int ibin = crossingBin[ip];
+      //if (idet==1)  printf("\t peak %lu ibin %i type (%i,%i,%i,%i) \n", peakList.size() ,ibin, crossings[ip],crossings[ip+1],crossings[ip+2],crossings[ip+3]);
       peakList.push_back( std::make_pair(crossingBin[ip],crossingBin[ip+2]) );
       peakKind.push_back(1);
       //printf(" det %i make peak  (%i,%i) kind %i  \n",idet,crossingBin[ip],crossingBin[ip+3],peakKind[peakKind.size()-1]);
@@ -763,19 +773,20 @@ hitMap anaRun::makeHits(peakType peakList, std::vector<Int_t> peakKind, std::vec
     triggerTime = dhit0.startTime*microSec;
     firstCharge = dhit0.qsum;
     */
-    printf(" return from makeHits with %lu made \n",detHits.size()); 
+    //printf(" return from makeHits with %lu made \n",detHits.size()); 
     return  detHits;
 }
 
 // extend peaks to zero of waveform  
-void anaRun::extendPeaks(std::vector<Double_t> v, peakType &peakList ) {
+void anaRun::extendPeaks(int idet, std::vector<Double_t> v, peakType &peakList ) {
   for(unsigned ip=0; ip<peakList.size(); ++ip)  {
     // high direction
     unsigned high = std::get<1>(peakList[ip]);
     unsigned next = v.size();
     if(ip<peakList.size()-1) next = std::get<1>(peakList[ip+1]);
     for(unsigned kp= high; kp < next ; ++kp ) {
-      if( v[kp] <0) break;
+      double vp = vsign[idet]*v[kp];
+      if( vp <0) break;
       std::get<1>(peakList[ip])=kp;
     }
 
@@ -784,9 +795,11 @@ void anaRun::extendPeaks(std::vector<Double_t> v, peakType &peakList ) {
     unsigned prev = 1;
     if(ip>0) prev = TMath::Max(prev,std::get<0>(peakList[ip-1]));
     for(unsigned kp= low; kp > prev ; --kp ) {
-      if( v[kp] <0 ) break;
+      double vp = vsign[idet]*v[kp];
+      if( vp <0 ) break;
       std::get<0>(peakList[ip])=kp;
     }
+    //printf("\t  extend peak %u from (%u,%u) to  (%u,%u)  \n",ip,low,high,std::get<0>(peakList[ip]),std::get<1>(peakList[ip])    );
   }
 }
 
@@ -811,6 +824,9 @@ void anaRun::plotWave(Long64_t ievent, unsigned idet) {
 
     histName.Form("EvPeaks%lli_DET%1i_%s", ievent,idet,detName.Data());
     TH1D* hpeaks = (TH1D*)hEvPeaks[idet]->Clone(histName);
+
+    histName.Form("EvDPeaks%lli_DET%1i_%s", ievent,idet,detName.Data());
+    TH1D* hdpeaks = (TH1D*)hEvDPeaks[idet]->Clone(histName);
 
     histName.Form("EvWeight%lli_DET%1i_%s", ievent,idet,detName.Data());
     TH1D* hweight = (TH1D*)hEvWeight[idet]->Clone(histName);
