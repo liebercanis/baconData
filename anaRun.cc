@@ -339,9 +339,11 @@ void anaRun::analyze(Long64_t nmax)
 
       if (id==0) trigTime =  triggerTime;
       int ihit=0;
+      double detQsum=0;
       for (hitMapIter hitIter=detHits.begin(); hitIter!=detHits.end(); ++hitIter) {
         TDetHit  hiti = hitIter->second;
         Double_t hitQ = hiti.qsum;
+        detQsum += hitQ;
         brun->detList[id]->hits.push_back(hiti);
         //Double_t phitQErr = phiti.qerr*timeUnit*1E9;
         Int_t width = hiti.lastBin - hiti.firstBin +1;
@@ -357,7 +359,14 @@ void anaRun::analyze(Long64_t nmax)
         hLife[id]->SetBinContent(istartBin, hLife[id]->GetBinContent(istartBin)+hitQ);
         hLife[id]->SetBinError(istartBin, sqrt(pow(hLife[id]->GetBinError(istartBin), 2)+pow(hiti.qerr, 2)));
      }
-     if (ievent<10) plotWave(ievent, id);
+      if (ievent<10) plotWave(ievent, id);
+
+      // fill in det header variables
+      brun->detList[id]->event =ievent;
+      brun->detList[id]->nspe = int(peakList.size());// needs to be fixed
+      brun->detList[id]->qsum=detQsum;  
+      brun->detList[id]->energy=detQsum; // same 
+
     } // end of det loop
     // fill BRun
     brun->bevent->event =ievent;

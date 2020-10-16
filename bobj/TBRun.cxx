@@ -81,12 +81,14 @@ void TBRun::dumpEvent(ofstream& dumpFile) {
     cout  << " bad dumpFile " << endl;
     return;
   }
+  // event header lines
   dumpFile  << "C**** dump run " << bevent->GetName()  << " event " <<  bevent->event << endl;
   dumpFile << bevent->event << " " << bevent->trigTime << endl;
 
   for(unsigned id=0; id<detList.size(); ++id)  {
     dumpFile << id << " " <<  detList[id]->GetName() << " "  << detList[id]->hits.size() << " " << detList[id]->nspe << "  " << detList[id]->energy  << endl;
     for(unsigned ih=0; ih<detList[id]->hits.size(); ++ih)  {
+      // these are all in a row 
       dumpFile << ih <<  " " 
         << detList[id]->hits[ih].firstBin << " " 
         << detList[id]->hits[ih].lastBin << " " 
