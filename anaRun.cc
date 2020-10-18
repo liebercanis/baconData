@@ -62,7 +62,7 @@ class anaRun
     void getAverages(std::vector<Double_t> digi, Double_t& ave, Double_t& sigma,unsigned max=0);
     void plotWave(Long64_t ievent,unsigned idet);
     std::vector<Double_t> getBaselineWeights(unsigned arraySize, peakType peakList, Int_t& maxWeightWidth);
-    std::vector<Double_t> getBaselineWMARecursive(Double_t ave, std::vector<Double_t> sig, std::vector<Double_t> weight, Int_t NWindow);
+    void getBaselineWMARecursive(int startBin, int stopBin, std::vector<Double_t> sig, std::vector<Double_t> weight, Int_t NWindow,std::vector<Double_t>& baseline);
     peakType  derivativePeaks(std::vector<Double_t> v, Int_t idet , Int_t nwindow, Double_t rms, std::vector<Int_t>& peakKind);
     peakType  simplePeaks(std::vector<Double_t> v, Int_t idet , unsigned minWidth, unsigned maxWidth, Double_t rms, std::vector<Int_t>& peakKind);
     void extendPeaks(int idet, std::vector<Double_t> v, peakType &peakList );
@@ -77,7 +77,9 @@ class anaRun
     double maxLife;
     Int_t nSigma;
     Int_t aveWidth;
+    unsigned long digiSize;
     unsigned diffStep;
+    unsigned baselineBreak;
 
 
     TH1D *hEvent[NDET];
@@ -121,6 +123,7 @@ anaRun::anaRun(Int_t maxEvents, TString tag)
   diffStep=7;
   nSigma=5;
   aveWidth=20;
+  baselineBreak=3000;
 
   if(!openFile()) { cout << " file with tag not found " << endl; return; }
   cout <<  " opened file with tag " << endl;
@@ -131,7 +134,7 @@ anaRun::anaRun(Int_t maxEvents, TString tag)
     vsign[id]=1.0;
     TString dname = detList[id]->GetName();
     if(dname.Contains( TString("1")))  {
-      derivativeSigma[id]=7.0;
+      derivativeSigma[id]=5.0;
       vsign[id]=-1.0;
     }
     printf(" setting  derivative Sigma for %s to %.3f \n",dname.Data(),derivativeSigma[id]);
@@ -205,6 +208,16 @@ anaRun::anaRun(Int_t maxEvents, TString tag)
 
 void anaRun::analyze(Long64_t nmax)
 {
+  peakType peakLateList;
+  peakType peakList;
+  std::vector<Double_t> baselineDigi;
+  std::vector<Int_t> peakKind;
+  std::vector<double> vderiv;
+  std::vector<double> ddigi;
+  std::vector<double> sdigi;
+  hitMap  detHits;
+
+
   // reset wave histos
   for (unsigned id=0; id<NDET; ++id) {
     hEvWave[id]->Reset();
@@ -219,8 +232,9 @@ void anaRun::analyze(Long64_t nmax)
   Long64_t nentries = btree->GetEntries();
   if(nmax>0) nentries=nmax;
   cout << " analyze " << nentries << endl;
+  double trigTime=0;
   for(Long64_t ievent=0; ievent< nentries; ++ievent) {
-    if (ievent%100==0) printf(" ... %lld \n", ievent);
+    if (ievent%10==0) printf(" ... %lld \n", ievent);
     brun->clear();
     btree->GetEntry(ievent);
     // fill raw ntuple... these are not used
@@ -236,8 +250,6 @@ void anaRun::analyze(Long64_t nmax)
     }
 
     fout->cd();
-    double trigTime=0;
-
     for(int id = 0; id < NDET; id++){
       Double_t derAve, derSigma;
       Double_t rawAve, rawSigma;
@@ -248,11 +260,12 @@ void anaRun::analyze(Long64_t nmax)
       // first subtract rawBaseline
       nt->Fill(id,rawBaseline[id],noise[id],rawBaseline[id],noise[id],rawAve,rawSigma);
       //printf(" det %i raw ave %f base %f noise %f %f \n",id,rawAve,rawBaseline[id] ,rawSigma, noise[id] );
-      std::vector<double> ddigi;
+      ddigi.clear();
       for (unsigned i = 0; i < detList[id]->digi.size(); i++) ddigi.push_back(detList[id]->digi[i]-rawAve); 
- 
+      digiSize =  ddigi.size();
+
       // make the derivative waveform 
-      std::vector<double> vderiv;
+      vderiv.clear();
       vderiv = differentiate(ddigi,diffStep);
       getAverages(vderiv,derAve,derSigma);
       for(unsigned isample = 0; isample < vderiv.size(); isample++){
@@ -270,49 +283,51 @@ void anaRun::analyze(Long64_t nmax)
       derSigma = fit1->GetParameter(2);
 
       // find  peaks 
-      peakType peakList;
-      std::vector<Int_t> peakKind;
       TString dname = detList[id]->GetName();
       // for derivativePeaks, window in time is timeUnit*windowSize (ns) . timeUnit = 2
       Int_t windowSize=10;              
       // min, max width in time bins for simple peaks
       unsigned maxWidth = 100000; 
       unsigned minWidth = 10;
+      peakList.clear();
+      peakKind.clear();
       if(dname.Contains( TString("1"))) peakList= derivativePeaks(vderiv, id, windowSize, derSigma, peakKind);
       else peakList= simplePeaks(ddigi, id, minWidth, maxWidth, rawSigma, peakKind);
       hPeakCount->Fill(id,peakList.size());
 
-      //printf("det %i %s has %lu peaks \n",id,dname.Data(),peakList.size() );
+      //printf("\t det %i %s has %lu peaks \n",id,dname.Data(),peakList.size() );
       //for (int ip=0; ip<int(peakList.size()); ++ip) printf(" \t ip %i start %i end %i \n",ip, std::get<0>(peakList[ip]) ,std::get<1>(peakList[ip]) );
 
+      /* break baseline into low and high pieces, early and late */
 
-
-       // get WMARecursive baseline weigthts 
+      // get WMARecursive baseline weigthts 
       int maxWeightWidth=0;
       std::vector<Double_t> weight = getBaselineWeights(ddigi.size(), peakList,maxWeightWidth);
-
-      // set early weights to zero
-      int wbin = 1000;
+      // set pre-trigger weights to zero
+      unsigned wbin = 1000;
       for (unsigned i = 0; i < wbin; i++) weight[i]=0; 
       for (unsigned i = 0; i < weight.size(); i++) hEvWeight[id]->SetBinContent(i+1, weight[i]); 
 
+      std::vector<Double_t> baselineDigi(ddigi.size(),0);
 
       // get WMARecursive baseline 
       int NWindow  = (int)detList[id]->digi.size()/8200*400;  // size is 8200
-      std::vector<Double_t> baselineDigi = getBaselineWMARecursive(0,ddigi, weight, NWindow);
+      getBaselineWMARecursive(0,baselineBreak,ddigi, weight, NWindow,baselineDigi);
+      NWindow  = (int)detList[id]->digi.size()/8200*100;  // size is 8200
+      getBaselineWMARecursive(baselineBreak,ddigi.size(),ddigi, weight, NWindow,baselineDigi);
+
 
       // zero basseline until after first pulse
       if(peakList.size()>0) for(unsigned i=0; i<= std::get<1>(peakList[0]) ; ++i ) baselineDigi[i]=0;
 
       // subract base 
-      std::vector<double> sdigi;
+      sdigi.clear();
       for (unsigned i = 0; i < detList[id]->digi.size(); i++) {
-          hBaselineWMA[id]->SetBinContent(i, baselineDigi[i]); 
-          double sval = ddigi[i] - baselineDigi[i];
-          sdigi.push_back(sval);
-          hEvSignal[id]->SetBinContent(i+1,sval);
+        hBaselineWMA[id]->SetBinContent(i, baselineDigi[i]); 
+        double sval = ddigi[i] - baselineDigi[i];
+        sdigi.push_back(sval);
+        hEvSignal[id]->SetBinContent(i+1,sval);
       }
-
       // extend peaks to baseline subtracted wave 
       extendPeaks(id,sdigi,peakList);
       /*** peak finding */
@@ -358,7 +373,8 @@ void anaRun::analyze(Long64_t nmax)
         ntHit->Fill(id,detHits.size(), ++hitCount, istartBin, hiti.startTime*timeUnit*microSec, hitQ, width, hiti.qpeak, hiti.good, hiti.kind);
         hLife[id]->SetBinContent(istartBin, hLife[id]->GetBinContent(istartBin)+hitQ);
         hLife[id]->SetBinError(istartBin, sqrt(pow(hLife[id]->GetBinError(istartBin), 2)+pow(hiti.qerr, 2)));
-     }
+      }
+
       if (ievent<10) plotWave(ievent, id);
 
       // fill in det header variables
@@ -411,7 +427,7 @@ bool  anaRun::openFile()
 // WMARecursive weights
 std::vector<Double_t> anaRun::getBaselineWeights(unsigned arraySize, peakType peakList, Int_t& maxWeightWidth)
 {
-    std::vector<Double_t> weight(arraySize, 0);
+    std::vector<Double_t> weight(digiSize, 0);
     if (peakList.size() == 0) return weight;
 
     // construct the weights
@@ -424,17 +440,15 @@ std::vector<Double_t> anaRun::getBaselineWeights(unsigned arraySize, peakType pe
         if (ip==peakList.size()) alpha = weight.size();
         else alpha = std::get<0>(peakList[ip]);
         int width = std::get<1>(peakList[ip])-std::get<0>(peakList[ip]);
-        //printf(" \t peak %i at %i width %i\n",ip,std::get<0>(peakList[ip]),width);
+        //printf(" \t weight %lu peak %i at %i width %i\n",weight.size(),ip,std::get<0>(peakList[ip]),width);
         if (width>maxWeightWidth) maxWeightWidth=width;
         for (int jp=beta+1; jp<alpha; ++jp)  weight[jp]=alpha-beta-1;
     }
     return weight;
 }
 //Weighted Moving Average baseline from Zugec et al https://arxiv.org/pdf/1601.04512.pdf 
-std::vector<Double_t> anaRun::getBaselineWMARecursive(Double_t ave, std::vector<Double_t> sig, std::vector<Double_t> weight,Int_t NWindow)
+void  anaRun::getBaselineWMARecursive(int startBin, int stopBin,std::vector<Double_t> sig, std::vector<Double_t> weight,Int_t NWindow,std::vector<Double_t>& baseline)
 {
-  // default baseline is zero
-  std::vector<Double_t> baseline(sig.size(),ave);
 
   // starting values 
   Double_t KW=0;
@@ -450,7 +464,7 @@ std::vector<Double_t> anaRun::getBaselineWMARecursive(Double_t ave, std::vector<
   //printf(" kcos %f ksin %f \n",kcos,ksin);
   Int_t resetBin = 100;
 
-  for(int iw=0; iw<int(sig.size()); ++iw) {
+  for(int iw=int(startBin); iw<int(stopBin); ++iw) {
     // reset
     if(iw%resetBin ==  0) {
       int low =  TMath::Max(0,iw-NWindow);
@@ -502,7 +516,7 @@ std::vector<Double_t> anaRun::getBaselineWMARecursive(Double_t ave, std::vector<
     }
     if( TMath::Abs(KW+CW)>1E-12) baseline[iw]=(KS+CS)/(KW+CW);
   }
-  return baseline;
+  return;
 }
 
 peakType anaRun::simplePeaks(std::vector<Double_t> v, Int_t idet, unsigned minWidth, unsigned maxWidth, Double_t rms,std::vector<Int_t>& peakKind ) 
@@ -514,7 +528,7 @@ peakType anaRun::simplePeaks(std::vector<Double_t> v, Int_t idet, unsigned minWi
   std::vector<double> crossingTime;
   unsigned vsize = v.size();
   Double_t cut = derivativeSigma[idet]*rms;
-  //cout << " >>>> rms " << rms << " cut " << cut << endl;
+   //cout << " >>>> det "<< idet << " rms " << rms << " cut " << cut << endl;
 
   /* loop over bins finding v>cut.  continue until v<cut */
   for( unsigned ibin=1; ibin< vsize-1; ++ibin ) {
@@ -788,6 +802,7 @@ hitMap anaRun::makeHits(peakType peakList, std::vector<Int_t> peakKind, std::vec
 
 // extend peaks to zero of waveform  
 void anaRun::extendPeaks(int idet, std::vector<Double_t> v, peakType &peakList ) {
+  if(peakList.size()==0) return;
   for(unsigned ip=0; ip<peakList.size(); ++ip)  {
     // high direction
     unsigned high = std::get<1>(peakList[ip]);
