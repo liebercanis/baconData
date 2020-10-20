@@ -66,6 +66,7 @@ class anaRun
     peakType  derivativePeaks(std::vector<Double_t> v, Int_t idet , Int_t nwindow, Double_t rms, std::vector<Int_t>& peakKind);
     peakType  simplePeaks(std::vector<Double_t> v, Int_t idet , unsigned minWidth, unsigned maxWidth, Double_t rms, std::vector<Int_t>& peakKind);
     void extendPeaks(int idet, std::vector<Double_t> v, peakType &peakList );
+    void getWiggle();
 
 
     hitMap makeHits(peakType peakList, std::vector<Int_t> peakKind, std::vector<Double_t> digi, Double_t sigma, Double_t& firstTime, Double_t& firstCharge);
@@ -81,7 +82,7 @@ class anaRun
     unsigned diffStep;
     unsigned baselineBreak;
 
-
+    TH1D *hWiggle;
     TH1D *hEvent[NDET];
     TH1D *hNoise[NDET];
     TH1D *hBase[NDET];
@@ -94,6 +95,8 @@ class anaRun
     TH1D *hBaselineWMA[NDET];
 
     TH1D *hWave[NDET];
+    TH1D *hSWaveSum[NDET];
+    TH1D *hSWaveSumSubtracted[NDET];
     TH1D *hEvWeight[NDET];
     TH1D *hDPeaks[NDET];
     TH1D *hDNoise[NDET];
@@ -112,6 +115,26 @@ class anaRun
     TDirectory *evDir;
 
 };
+
+void anaRun::getWiggle()
+{
+  TH1D* hW=NULL;
+  hWiggle=NULL;
+  TString fileName = TString("wiggle-for-")+runTag+TString(".root");
+  TFile *f1 = new TFile(fileName,"readonly");
+  if(!f1) {
+    printf(" no wiggle file for %s \n",runTag.Data());
+    return;
+  } 
+  f1->GetObject("SWaveSumwave1",hW);
+  if(!hW) return;
+  hWiggle = (TH1D*) hW->Clone(Form("SWaveSumwave1-%s",runTag.Data())); 
+  double norm = hWiggle->GetEntries()/hWiggle->GetNbinsX();
+  printf(" got wiggle %s bins %i norm %.2f for run %s \n",hWiggle->GetName(),hWiggle->GetNbinsX(),norm,runTag.Data());
+  for(int i=0; i< hWiggle->GetNbinsX(); ++i) hWiggle->SetBinContent(i, hW->GetBinContent(i)/norm);
+  return;
+}
+
 
 ////////////////////////////////////////////////////////
 anaRun::anaRun(Int_t maxEvents, TString tag)
@@ -153,8 +176,9 @@ anaRun::anaRun(Int_t maxEvents, TString tag)
     hBaselineWMA[id]=new TH1D(Form("BaselineWMA%s", detList[id]->GetName()), Form("BaselineWMA%s", detList[id]->GetName()), nsamples, 0, nsamples);
   }
 
-
   fout = new TFile( Form("ana-%s.root",tag.Data()),"recreate");
+  getWiggle();
+  if(hWiggle) fout->Append(hWiggle);
   evDir = fout->mkdir("EvDir");
   fout->cd();
 
@@ -170,6 +194,8 @@ anaRun::anaRun(Int_t maxEvents, TString tag)
 
 
   for(unsigned id=0; id<NDET; ++id) { 
+    hSWaveSum[id] = new TH1D(Form("SWaveSum%s",detList[id]->GetName()),Form("Wave%s",detList[id]->GetName()), nsamples,0, nsamples);
+    hSWaveSumSubtracted[id] = new TH1D(Form("SWaveSumSubtracted%s",detList[id]->GetName()),Form("Wave%s",detList[id]->GetName()), nsamples,0, nsamples);
     hEvent[id] = new TH1D(Form("Event%s",detList[id]->GetName()),Form("Sum%s",detList[id]->GetName()), nsamples,0, nsamples);
     hBase[id] = new TH1D(Form("RawBase%s",detList[id]->GetName()),Form("Base det %s",detList[id]->GetName()), 400,baseOffset-200,baseOffset+200);
     hNoise[id] = new TH1D(Form("RawNoise%s",detList[id]->GetName()),Form("Noise det %s",detList[id]->GetName()), 50,0, 50);
@@ -234,7 +260,7 @@ void anaRun::analyze(Long64_t nmax)
   cout << " analyze " << nentries << endl;
   double trigTime=0;
   for(Long64_t ievent=0; ievent< nentries; ++ievent) {
-    if (ievent%10==0) printf(" ... %lld \n", ievent);
+    if (ievent%100==0) printf(" ... %lld \n", ievent);
     brun->clear();
     btree->GetEntry(ievent);
     // fill raw ntuple... these are not used
@@ -250,7 +276,11 @@ void anaRun::analyze(Long64_t nmax)
     }
 
     fout->cd();
+    bool isPMT=false;
     for(int id = 0; id < NDET; id++){
+      TString dname = detList[id]->GetName();
+      if(dname.Contains( TString("1"))) isPMT=true;
+      else isPMT=false;
       Double_t derAve, derSigma;
       Double_t rawAve, rawSigma;
       getAverages(detList[id]->digi, rawAve, rawSigma, 600); // first 600 bins
@@ -283,7 +313,6 @@ void anaRun::analyze(Long64_t nmax)
       derSigma = fit1->GetParameter(2);
 
       // find  peaks 
-      TString dname = detList[id]->GetName();
       // for derivativePeaks, window in time is timeUnit*windowSize (ns) . timeUnit = 2
       Int_t windowSize=10;              
       // min, max width in time bins for simple peaks
@@ -291,7 +320,7 @@ void anaRun::analyze(Long64_t nmax)
       unsigned minWidth = 10;
       peakList.clear();
       peakKind.clear();
-      if(dname.Contains( TString("1"))) peakList= derivativePeaks(vderiv, id, windowSize, derSigma, peakKind);
+      if(isPMT) peakList= derivativePeaks(vderiv, id, windowSize, derSigma, peakKind);
       else peakList= simplePeaks(ddigi, id, minWidth, maxWidth, rawSigma, peakKind);
       hPeakCount->Fill(id,peakList.size());
 
@@ -316,9 +345,14 @@ void anaRun::analyze(Long64_t nmax)
       NWindow  = (int)detList[id]->digi.size()/8200*100;  // size is 8200
       getBaselineWMARecursive(baselineBreak,ddigi.size(),ddigi, weight, NWindow,baselineDigi);
 
-
-      // zero basseline until after first pulse
+      // zero baseline until after first pulse
       if(peakList.size()>0) for(unsigned i=0; i<= std::get<1>(peakList[0]) ; ++i ) baselineDigi[i]=0;
+
+      // save wiggle 
+      for (unsigned i = 0; i < detList[id]->digi.size(); i++) hSWaveSum[id]->SetBinContent(i+1,hSWaveSum[id]->GetBinContent(i+1)+ddigi[i] - baselineDigi[i]);
+
+      // remove PMT wiggle
+      if(peakList.size()>0&&isPMT&&hWiggle) for (unsigned i =  std::get<1>(peakList[0])+1; i < baselineBreak; i++) baselineDigi[i] += hWiggle->GetBinContent(i+1);
 
       // subract base 
       sdigi.clear();
@@ -327,7 +361,21 @@ void anaRun::analyze(Long64_t nmax)
         double sval = ddigi[i] - baselineDigi[i];
         sdigi.push_back(sval);
         hEvSignal[id]->SetBinContent(i+1,sval);
+        hSWaveSumSubtracted[id]->SetBinContent(i+1,hSWaveSumSubtracted[id]->GetBinContent(i+1)+sval);
       }
+
+      // redo peak finding for PMT
+      if(isPMT) {
+        vderiv.clear();
+        vderiv = differentiate(sdigi,diffStep);
+        unsigned maxWidth = 100000; 
+        unsigned minWidth = 10;
+        peakList.clear();
+        peakKind.clear();
+        peakList= derivativePeaks(vderiv, id, windowSize, derSigma, peakKind);
+        //hPeakCount->Fill(id,peakList.size())
+      }
+
       // extend peaks to baseline subtracted wave 
       extendPeaks(id,sdigi,peakList);
       /*** peak finding */
@@ -344,7 +392,7 @@ void anaRun::analyze(Long64_t nmax)
 
       ntCal->Fill(ievent,id,rawAve,rawSigma,derAve,derSigma,sAve,sSigma);
 
-      /** make hits **/
+      /***********  make hits *********/
       double triggerTime=0;
       double firstCharge=0;
       int hitCount=0;
