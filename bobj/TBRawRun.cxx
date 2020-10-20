@@ -1,7 +1,15 @@
 #include "TBRawRun.hxx"
 ClassImp(TBRawRun)
 
-TBRawRun::TBRawRun(TString runName ): TNamed(runName,runName)
+TBRawRun::TBRawRun(): TNamed("blah","blah"){
+  initialize();
+}
+
+TBRawRun::TBRawRun(TString runName ): TNamed(runName,runName){
+  initialize();
+}
+
+void TBRawRun::initialize()
 {
   btree = new TTree("BTree"," bacon data " );
   det0.SetName(Form("det%i",0));

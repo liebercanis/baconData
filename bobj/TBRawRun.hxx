@@ -16,9 +16,11 @@ using namespace std;
 
 class TBRawRun: public TNamed {
   public:
+    TBRawRun();
     TBRawRun(TString runName = "run0");
     //~TBRawRun();
 
+    void initialize();
     void clear();
     enum {NDET=4};
     Int_t run;
