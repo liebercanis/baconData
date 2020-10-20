@@ -41,12 +41,12 @@ LIBS+=  -L$(FFTW)/lib -lfftw3 $(ROOTLIBS) -L$($BOBJ) -lBaconData
 all: convertRaw
 
 convertRaw: convertRaw.cc
-	$(CPP) -o ../bin/$@ $<  $(LIBS)
+	$(CPP) -o $@ $<  $(LIBS)
 
 .PHONY : clean show
 
 clean:
-	rm -f *.o ../bin/readit 
+	rm -f *.o convertRaw 
 show:
 	@echo include path = $(INC_PATH)
 	@echo CXXFLAGS = $(CXXFLAGS)
