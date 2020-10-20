@@ -36,7 +36,7 @@ CPP= $(CXX) $(CXXFLAGS) $(INC_PATH)
 CC+=-D_LARGEFILE_SOURCE -D_FILE_OFFSET_BITS=64
 CPP+=-D_LARGEFILE_SOURCE -D_FILE_OFFSET_BITS=64
 
-LIBS+=  -L$(FFTW)/lib -lfftw3 $(ROOTLIBS) -L$($BOBJ) -lBaconData
+LIBS+=  -L$(FFTW)/lib -lfftw3 $(ROOTLIBS) -L$(BOBJ) -lBaconData
 
 all: convertRaw
 
