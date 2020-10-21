@@ -100,14 +100,12 @@ void closeFiles()
 int main(int argc, char* argv[])
 {
   cout << "executing " << argv[0] << endl;
-  if(argc<2) {
-    printf(" usage: convertRaw <tag> <events> \n ");
+  if(argc<1) {
+    printf(" usage: convertRaw <tag>  \n ");
     exit(0);
    }
-  string stag = string(argv[1]);
-  TString tag(stag.c_str());
-  int nEvents=0;
-  if(argc>2) nEvents = atoi(argv[2]);
+  cout << argv[1] << endl;
+  TString tag(argv[1]);
 
   TFile* fout = new TFile(Form("rootData/%s.root",tag.Data()),"recreate");
   brun = new TBRawRun(tag);

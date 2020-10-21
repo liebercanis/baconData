@@ -47,7 +47,9 @@ convertRaw: convertRaw.cc
 
 clean:
 	rm -f *.o convertRaw 
+	rm -rf convertRaw.dSYM
 show:
+	@echo BOBJ = $(BOBJ)
 	@echo include path = $(INC_PATH)
 	@echo CXXFLAGS = $(CXXFLAGS)
 	@echo LIBS = $(LIBS)
