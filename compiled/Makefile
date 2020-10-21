@@ -38,16 +38,21 @@ CPP+=-D_LARGEFILE_SOURCE -D_FILE_OFFSET_BITS=64
 
 LIBS+=  -L$(FFTW)/lib -lfftw3 $(ROOTLIBS) -L$(BOBJ) -lBaconData
 
-all: convertRaw
+all: convertRaw ana
 
 convertRaw: convertRaw.cc
 	$(CPP) -o $@ $<  $(LIBS)
+
+ana: ana.cc
+	$(CPP) -o $@ $<  $(LIBS)
+
 
 .PHONY : clean show
 
 clean:
 	rm -f *.o convertRaw 
 	rm -rf convertRaw.dSYM
+	rm -rf ana.dSYM
 show:
 	@echo BOBJ = $(BOBJ)
 	@echo include path = $(INC_PATH)
