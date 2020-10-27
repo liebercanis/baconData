@@ -78,7 +78,7 @@ class anaRun
 
 
 
-    hitMap makeHits(peakType peakList, std::vector<Int_t> peakKind, std::vector<Double_t> digi, Double_t sigma, Double_t& firstTime, Double_t& firstCharge);
+    hitMap makeHits(int idet, peakType peakList, std::vector<Int_t> peakKind, std::vector<Double_t> digi, Double_t sigma, Double_t& firstTime, Double_t& firstCharge);
 
     double timeUnit;
     double derivativeSigma[NDET];
@@ -89,9 +89,11 @@ class anaRun
     Int_t aveWidth;
     unsigned long digiSize;
     unsigned diffStep;
-    unsigned baselineBreak;
+    //unsigned baselineBreak;
+  
 
     TH1D *hWiggle;
+    TH1D* hSWavePMT;
     TH1D *hEvent[NDET];
     TH1D *hFFT[NDET];
     TH1D *hInvFFT[NDET];
@@ -107,6 +109,7 @@ class anaRun
     TH1D *hBaselineWMA[NDET];
 
     TH1D *hWave[NDET];
+    TH1D *hSWaveRaw[NDET];
     TH1D *hSWaveSum[NDET];
     TH1D *hSWaveSumSubtracted[NDET];
     TH1D *hEvWeight[NDET];
@@ -157,8 +160,10 @@ std::vector< Double_t > anaRun::inverseFFT(Int_t id,std::vector<std::complex<dou
   int nsamples = (int) detList[id]->digi.size();
   double sum=0;
   for(int is =0; is<nsamples; ++is) {
-    if(is>0&&is<4) fInverseFFT->SetPoint(is, 0,0 );
-    else fInverseFFT->SetPoint(is, VectorComplex[is].real(),VectorComplex[is].imag() );
+    // notch
+    //if(is>26&&is<28) fInverseFFT->SetPoint(is,VectorComplex[is].real()/10.,VectorComplex[is].imag() );
+    //else 
+    fInverseFFT->SetPoint(is, VectorComplex[is].real(),VectorComplex[is].imag() );
     sum+= ddigi[is];
   }
   fInverseFFT->Transform();
@@ -183,13 +188,13 @@ void anaRun::getWiggle()
 {
   TH1D* hW=NULL;
   hWiggle=NULL;
-  TString fileName = TString("wiggle-for-")+runTag+TString(".root");
+  TString fileName = TString("anaSum-")+runTag+TString(".root");
   TFile *f1 = new TFile(fileName,"readonly");
   if(!f1) {
     printf(" no wiggle file for %s \n",runTag.Data());
     return;
   } 
-  f1->GetObject("SWaveSumwave1",hW);
+  f1->GetObject("SumWaveNormwave1",hW);
   if(!hW) return;
   hWiggle = (TH1D*) hW->Clone(Form("SWaveSumwave1-%s",runTag.Data())); 
   double norm = hWiggle->GetEntries()/hWiggle->GetNbinsX();
@@ -209,7 +214,7 @@ anaRun::anaRun(Int_t maxEvents, TString tag)
   diffStep=7;
   nSigma=5;
   aveWidth=20;
-  baselineBreak=3000;
+  //baselineBreak=3000;
 
   if(!openFile()) { cout << " file with tag not found " << endl; return; }
   cout <<  " opened file with tag " << endl;
@@ -259,7 +264,9 @@ anaRun::anaRun(Int_t maxEvents, TString tag)
   cout << " ****** open  dump for run " <<  brun->bevent->GetName() << endl;
 
 
+  hSWavePMT = new TH1D("SWavePMT","Wave PMT", nsamples,0, nsamples);
   for(unsigned id=0; id<NDET; ++id) { 
+    hSWaveRaw[id] = new TH1D(Form("SWaveRaw%s",detList[id]->GetName()),Form("Wave%s",detList[id]->GetName()), nsamples,0, nsamples);
     hSWaveSum[id] = new TH1D(Form("SWaveSum%s",detList[id]->GetName()),Form("Wave%s",detList[id]->GetName()), nsamples,0, nsamples);
     hSWaveSumSubtracted[id] = new TH1D(Form("SWaveSumSubtracted%s",detList[id]->GetName()),Form("Wave%s",detList[id]->GetName()), nsamples,0, nsamples);
     hEvent[id] = new TH1D(Form("Event%s",detList[id]->GetName()),Form("Sum%s",detList[id]->GetName()), nsamples,0, nsamples);
@@ -269,7 +276,7 @@ anaRun::anaRun(Int_t maxEvents, TString tag)
     hNoise[id]->GetYaxis()->SetTitle(" frequency ");
     hDNoise[id] = new TH1D(Form("DNoise%s",detList[id]->GetName()),Form("DNoise%s",detList[id]->GetName()), 1000,-200,200);
     hSNoise[id] = new TH1D(Form("SNoise%s", detList[id]->GetName()), Form("SNoise det %s", detList[id]->GetName()), 50, -50, 50);
-    hLife[id] = new TH1D(Form("Life%i", id), Form(" lifetime DET %i ", id), 500, 0, maxLife);
+    hLife[id] = new TH1D(Form("Life%i", id), Form(" lifetime DET %i ", id), 4000, 0, maxLife);
     hLife[id]->Sumw2();
   }
   hPeakCount = new TH1D("PeakCount"," peaks by det ",NDET,0,NDET);
@@ -314,6 +321,8 @@ void anaRun::analyze(Long64_t nmax)
   std::vector<double> ddigi;
   std::vector<double> sdigi;
   hitMap  detHits;
+      
+  unsigned prePulse=800;
 
 
   // reset wave histos
@@ -343,11 +352,12 @@ void anaRun::analyze(Long64_t nmax)
     double noise[NDET];
     for(unsigned id=0; id<NDET; ++id) {
       for(unsigned long i=0; i< detList[id]->digi.size() ; ++i) hEvent[id]->SetBinContent(i+1, hEvent[id]->GetBinContent(1+i)+detList[id]->digi[i]);
-      vector<double> adigi = detList[id]->digi;
+      vector<double> adigi;
+      for (unsigned is=0; is<prePulse; ++is) adigi.push_back(detList[id]->digi[is]);
       std::sort(adigi.begin(), adigi.end());
       double nsamples = (double) detList[id]->digi.size();
-      rawBaseline[id] = adigi[0.5*nsamples];
-      noise[id] = std::abs( adigi[0.68*nsamples] - rawBaseline[id]);
+      rawBaseline[id] = adigi[0.5*prePulse];
+      noise[id] = std::abs( adigi[0.68*prePulse] - rawBaseline[id]);
     }
 
     fout->cd();
@@ -358,7 +368,7 @@ void anaRun::analyze(Long64_t nmax)
       else isPMT=false;
       Double_t derAve, derSigma;
       Double_t rawAve, rawSigma;
-      getAverages(detList[id]->digi, rawAve, rawSigma, 600); // first 600 bins
+      getAverages(detList[id]->digi, rawAve, rawSigma, prePulse); // first bins
       hBase[id]->Fill(rawAve);
       hNoise[id]->Fill(rawSigma);
 
@@ -371,14 +381,8 @@ void anaRun::analyze(Long64_t nmax)
       digiSize =  ddigi.size();
 
       for(unsigned isample = 0; isample < vderiv.size(); isample++) hEvRawWave[id]->SetBinContent(isample+1,ddigi[isample]);
-
-      //FFT
-      std::vector<std::complex<double> > complexTransform;
-      if(isPMT) {
-        complexTransform = FFT(id,ddigi);
-        std::vector< Double_t > fdigi = inverseFFT(id,complexTransform,ddigi);
-        ddigi=fdigi;
-      }
+      for (unsigned i = 0; i < detList[id]->digi.size(); i++) hSWaveRaw[id]->SetBinContent(i+1,hSWaveRaw[id]->GetBinContent(i+1)+ddigi[i]);
+     
 
       // make the derivative waveform 
       vderiv.clear();
@@ -388,6 +392,13 @@ void anaRun::analyze(Long64_t nmax)
         hEvWave[id]->SetBinContent(isample+1,ddigi[isample]);
         hEvDWave[id]->SetBinContent(isample+1,vderiv[isample]);
         ntWave->Fill(id,ddigi[isample],vderiv[isample]);
+      }
+
+      //FFT
+      if(isPMT&&ievent<10) {
+        std::vector<std::complex<double> > complexTransform;
+        complexTransform = FFT(id,ddigi);
+        std::vector< Double_t > fdigi = inverseFFT(id,complexTransform,ddigi);
       }
 
       // derAVe, derSigma  best to just fit Gaussian
@@ -410,10 +421,36 @@ void anaRun::analyze(Long64_t nmax)
       else peakList= simplePeaks(ddigi, id, minWidth, maxWidth, rawSigma, peakKind);
       hPeakCount->Fill(id,peakList.size());
 
+      // for PMT, subtract (add wiggle inverted wave) after first peak
+      if(peakList.size()>0&&isPMT&&hWiggle){
+        //for (unsigned i =  std::get<1>(peakList[0])+1; i < baselineBreak; i++) baselineDigi[i] += hWiggle->GetBinContent(i+1)
+        for (unsigned i = 0; i < detList[id]->digi.size(); i++) 
+          if(i>std::get<1>(peakList[0])) {
+            hSWavePMT->SetBinContent(i+1,hSWavePMT->GetBinContent(i+1)+ddigi[i] + hWiggle->GetBinContent(i+1) );
+            ddigi[i] += hWiggle->GetBinContent(i+1); 
+          } else  
+            hSWavePMT->SetBinContent(i+1,hSWavePMT->GetBinContent(i+1)+ddigi[i]);
+
+        // refil the event wave only
+        for(unsigned isample = 0; isample < vderiv.size(); isample++) hEvWave[id]->SetBinContent(isample+1,ddigi[isample]);
+
+        // redo derivative waveform, peak finding
+        /*vderiv.clear();
+          vderiv = differentiate(ddigi,diffStep);
+          getAverages(vderiv,derAve,derSigma);
+          for(unsigned isample = 0; isample < vderiv.size(); isample++){
+          hEvWave[id]->SetBinContent(isample+1,ddigi[isample]);
+          hEvDWave[id]->SetBinContent(isample+1,vderiv[isample]);
+        }
+        peakList.clear();
+        peakKind.clear();
+        peakList= derivativePeaks(vderiv, id, windowSize, derSigma, peakKind);
+        */
+      }
+
+
       //printf("\t det %i %s has %lu peaks \n",id,dname.Data(),peakList.size() );
       //for (int ip=0; ip<int(peakList.size()); ++ip) printf(" \t ip %i start %i end %i \n",ip, std::get<0>(peakList[ip]) ,std::get<1>(peakList[ip]) );
-
-      /* break baseline into low and high pieces, early and late */
 
       // get WMARecursive baseline weigthts 
       int maxWeightWidth=0;
@@ -426,13 +463,8 @@ void anaRun::analyze(Long64_t nmax)
       std::vector<Double_t> baselineDigi(ddigi.size(),0);
 
       // get WMARecursive baseline 
-      int NWindow  = (int)detList[id]->digi.size()/8200*400;  // size is 8200
-      if(isPMT) {
-        getBaselineWMARecursive(0,baselineBreak,ddigi, weight, NWindow,baselineDigi);
-        NWindow  = (int)detList[id]->digi.size()/8200*100;  // size is 8200
-        getBaselineWMARecursive(baselineBreak,ddigi.size(),ddigi, weight, NWindow,baselineDigi);
-      } else 
-        getBaselineWMARecursive(0,ddigi.size(),ddigi, weight, NWindow,baselineDigi);
+      int NWindow  = 1000;  // size is 8200
+      getBaselineWMARecursive(0,ddigi.size(),ddigi, weight, NWindow,baselineDigi);
 
       // zero baseline until after first pulse
       if(peakList.size()>0) for(unsigned i=0; i<= std::get<1>(peakList[0]) ; ++i ) baselineDigi[i]=0;
@@ -440,9 +472,7 @@ void anaRun::analyze(Long64_t nmax)
       // save wiggle 
       for (unsigned i = 0; i < detList[id]->digi.size(); i++) hSWaveSum[id]->SetBinContent(i+1,hSWaveSum[id]->GetBinContent(i+1)+ddigi[i] - baselineDigi[i]);
 
-      // remove PMT wiggle
-      //if(peakList.size()>0&&isPMT&&hWiggle) for (unsigned i =  std::get<1>(peakList[0])+1; i < baselineBreak; i++) baselineDigi[i] += hWiggle->GetBinContent(i+1);
-
+     
       // subract base 
       sdigi.clear();
       for (unsigned i = 0; i < detList[id]->digi.size(); i++) {
@@ -452,20 +482,6 @@ void anaRun::analyze(Long64_t nmax)
         hEvSignal[id]->SetBinContent(i+1,sval);
         hSWaveSumSubtracted[id]->SetBinContent(i+1,hSWaveSumSubtracted[id]->GetBinContent(i+1)+sval);
       }
-
-      // redo peak finding for PMT
-      /**
-      if(isPMT) {
-        vderiv.clear();
-        vderiv = differentiate(sdigi,diffStep);
-        unsigned maxWidth = 100000; 
-        unsigned minWidth = 10;
-        peakList.clear();
-        peakKind.clear();
-        peakList= derivativePeaks(vderiv, id, windowSize, derSigma, peakKind);
-        //hPeakCount->Fill(id,peakList.size())
-      }
-      **/
 
       // extend peaks to baseline subtracted wave 
       extendPeaks(id,sdigi,peakList);
@@ -487,11 +503,10 @@ void anaRun::analyze(Long64_t nmax)
       double triggerTime=0;
       double firstCharge=0;
       int hitCount=0;
-      hitMap  detHits = makeHits(peakList,peakKind,vderiv,sSigma,triggerTime,firstCharge);
+      hitMap  detHits = makeHits(id,peakList,peakKind,sdigi,sSigma,triggerTime,firstCharge);
 
       //printf("after makeHits detHits det %i name %s has %lu peaks \n",id,dname.Data(),detHits.size() );
 
-      if (id==0) trigTime =  triggerTime;
       int ihit=0;
       double detQsum=0;
       for (hitMapIter hitIter=detHits.begin(); hitIter!=detHits.end(); ++hitIter) {
@@ -507,7 +522,7 @@ void anaRun::analyze(Long64_t nmax)
           hEvPeaks[id]->SetBinContent(ibin+1,sdigi[ibin]);
           hEvDPeaks[id]->SetBinContent(ibin+1,vderiv[ibin]);
         }
-        Double_t hitTime =  hiti.startTime*timeUnit*microSec-trigTime;
+        Double_t hitTime =  hiti.startTime*timeUnit*microSec;
         Int_t istartBin =  hLife[id]->FindBin(hitTime);
         ntHit->Fill(id,detHits.size(), ++hitCount, istartBin, hiti.startTime*timeUnit*microSec, hitQ, width, hiti.qpeak, hiti.good, hiti.kind);
         hLife[id]->SetBinContent(istartBin, hLife[id]->GetBinContent(istartBin)+hitQ);
@@ -868,7 +883,7 @@ std::vector<Double_t> anaRun::differentiate(std::vector<Double_t> v, unsigned di
   return d;
 }
 
-hitMap anaRun::makeHits(peakType peakList, std::vector<Int_t> peakKind, std::vector<Double_t> ddigi, Double_t sigma, Double_t& triggerTime, Double_t& firstCharge)
+hitMap anaRun::makeHits(int idet, peakType peakList, std::vector<Int_t> peakKind, std::vector<Double_t> ddigi, Double_t sigma, Double_t& triggerTime, Double_t& firstCharge)
 {
     triggerTime=1E9;
     firstCharge=0;
@@ -890,7 +905,7 @@ hitMap anaRun::makeHits(peakType peakList, std::vector<Int_t> peakKind, std::vec
         Double_t qpeak=0;
         Double_t qsum = 0;
         for (unsigned k=klow; k<khigh; ++k) {
-            double qdigik = -1.*ddigi[k];
+            double qdigik = vsign[idet]*ddigi[k];
             qsum += qdigik;
             if (qdigik>qpeak) {
                 peakt=k;
