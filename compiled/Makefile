@@ -44,10 +44,10 @@ all: convertRaw ana sum
 convertRaw: convertRaw.cc
 	$(CPP) -o $@ $<  $(LIBS)
 
-ana: ana.cc
+ana: ana.cc anaRun.cc
 	$(CPP) -o $@ $<  $(LIBS)
 
-sum: sum.cc
+sum: sum.cc anaSum.cc
 	$(CPP) -o $@ $<  $(LIBS)
 
 
@@ -59,6 +59,7 @@ clean:
 	rm -rf convertRaw.dSYM
 	rm -rf ana.dSYM
 show:
+	@echo LOCAL = $(LOCAL)
 	@echo BOBJ = $(BOBJ)
 	@echo include path = $(INC_PATH)
 	@echo CXXFLAGS = $(CXXFLAGS)
