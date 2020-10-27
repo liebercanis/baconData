@@ -189,8 +189,8 @@ void anaRun::getWiggle()
   TH1D* hW=NULL;
   hWiggle=NULL;
   TString fileName = TString("rootData/anaSum-")+runTag+TString(".root");
-  TFile *f1 = new TFile(fileName,"readonly");
   printf(" getWiggle looking for file %s \n",fileName.Data());
+  TFile *f1 = new TFile(fileName,"readonly");
   if(!f1) {
     printf(" no wiggle file for %s \n",runTag.Data());
     return;
