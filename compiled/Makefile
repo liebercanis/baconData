@@ -16,8 +16,7 @@ LOCAL        := $(shell pwd)
 ROOTCFLAGS   := $(shell root-config --cflags)
 ROOTLIBS     := $(shell root-config --libs)
 ROOTGLIBS    := $(shell root-config --glibs)
-BOBJ=/Users/gold/baconLocal/git/bacon/baconData/bobj
-#$(HOME)/bacon/baconData/bobj
+BOBJ=$(HOME)/bacon/baconData/bobj
 # Linux with egcs, gcc 2.9x, gcc 3.x (>= RedHat 5.2)
 CXX           = g++ -ggdb 
 ## -D_LARGEFILE_SOURCE -D_FILE_OFFSET_BITS=64
