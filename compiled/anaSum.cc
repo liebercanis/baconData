@@ -67,7 +67,7 @@ anaSum::anaSum(Int_t maxEvents, TString tag)
   if(!openFile()) { cout << " file with tag not found " << endl; return; }
   cout <<  " opened file with tag " << endl;
 
-  fout = new TFile( Form("anaSum-%s.root",tag.Data()),"recreate");
+  fout = new TFile( Form("rootData/anaSum-%s.root",tag.Data()),"recreate");
   fout->cd();
 
   // get sample size 

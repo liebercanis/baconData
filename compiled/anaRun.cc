@@ -188,7 +188,7 @@ void anaRun::getWiggle()
 {
   TH1D* hW=NULL;
   hWiggle=NULL;
-  TString fileName = TString("anaSum-")+runTag+TString(".root");
+  TString fileName = TString("rootData/anaSum-")+runTag+TString(".root");
   TFile *f1 = new TFile(fileName,"readonly");
   if(!f1) {
     printf(" no wiggle file for %s \n",runTag.Data());
@@ -247,7 +247,7 @@ anaRun::anaRun(Int_t maxEvents, TString tag)
     hBaselineWMA[id]=new TH1D(Form("BaselineWMA%s", detList[id]->GetName()), Form("BaselineWMA%s", detList[id]->GetName()), nsamples, 0, nsamples);
   }
 
-  fout = new TFile( Form("ana-%s.root",tag.Data()),"recreate");
+  fout = new TFile( Form("rootData/ana-%s.root",tag.Data()),"recreate");
   getWiggle();
   if(hWiggle) fout->Append(hWiggle);
   evDir = fout->mkdir("EvDir");
