@@ -16,11 +16,12 @@ LOCAL        := $(shell pwd)
 ROOTCFLAGS   := $(shell root-config --cflags)
 ROOTLIBS     := $(shell root-config --libs)
 ROOTGLIBS    := $(shell root-config --glibs)
-BOBJ=$(HOME)/bacon/baconData/bobj
+BOBJ=/Users/gold/baconLocal/git/bacon/baconData/bobj
+#$(HOME)/bacon/baconData/bobj
 # Linux with egcs, gcc 2.9x, gcc 3.x (>= RedHat 5.2)
 CXX           = g++ -ggdb 
 ## -D_LARGEFILE_SOURCE -D_FILE_OFFSET_BITS=64
-CXXFLAGS      = -O -Wall -fPIC
+CXXFLAGS      = -O -Wall -fPIC 
 LD            = g++
 LDFLAGS       = -O
 SOFLAGS       = -shared
@@ -31,6 +32,7 @@ CXXFLAGS     += -I$(LOCAL) -I/$/usr/include -I/usr/local/include -I$(BOBJ)
 
 CC=gcc -g -Wall -c $(INC_PATH) 
 CPP= $(CXX) $(CXXFLAGS) $(INC_PATH) 
+##-install_name "@loader_path/../bobj/libBaconData.so" -dynamiclib -o libBaconData.so
 
 
 CC+=-D_LARGEFILE_SOURCE -D_FILE_OFFSET_BITS=64
@@ -38,13 +40,17 @@ CPP+=-D_LARGEFILE_SOURCE -D_FILE_OFFSET_BITS=64
 
 LIBS+=  -L$(FFTW)/lib -lfftw3 $(ROOTLIBS) -L$(BOBJ) -lBaconData
 
-all: convertRaw ana
+all: convertRaw ana sum
 
 convertRaw: convertRaw.cc
 	$(CPP) -o $@ $<  $(LIBS)
 
 ana: ana.cc
 	$(CPP) -o $@ $<  $(LIBS)
+
+sum: sum.cc
+	$(CPP) -o $@ $<  $(LIBS)
+
 
 
 .PHONY : clean show
