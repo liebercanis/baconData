@@ -260,7 +260,7 @@ anaRun::anaRun(Int_t maxEvents, TString tag)
   for(unsigned id=0; id<brun->detList.size() ; ++id) printf(" %i %s %s \n",id,brun->detList[id]->GetName() , detList[id]->GetName() );
 
   // open dump file
-  dumpFile.open (Form("dump-%s.txt",brun->bevent->GetName()),ios::out);
+  dumpFile.open (Form("rootData/dump-%s.txt",brun->bevent->GetName()),ios::out);
   dumpFile << "C****** open  dump for run " <<  brun->bevent->GetName() << endl;
   cout << " ****** open  dump for run " <<  brun->bevent->GetName() << endl;
 
