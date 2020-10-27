@@ -42,8 +42,6 @@ namespace std {} using namespace std;
 // Header files passed via #pragma extra_include
 
 namespace ROOT {
-   static void *new_TBRawRun(void *p = 0);
-   static void *newArray_TBRawRun(Long_t size, void *p);
    static void delete_TBRawRun(void *p);
    static void deleteArray_TBRawRun(void *p);
    static void destruct_TBRawRun(void *p);
@@ -58,8 +56,6 @@ namespace ROOT {
                   typeid(::TBRawRun), ::ROOT::Internal::DefineBehavior(ptr, ptr),
                   &::TBRawRun::Dictionary, isa_proxy, 4,
                   sizeof(::TBRawRun) );
-      instance.SetNew(&new_TBRawRun);
-      instance.SetNewArray(&newArray_TBRawRun);
       instance.SetDelete(&delete_TBRawRun);
       instance.SetDeleteArray(&deleteArray_TBRawRun);
       instance.SetDestructor(&destruct_TBRawRun);
@@ -121,13 +117,6 @@ void TBRawRun::Streamer(TBuffer &R__b)
 }
 
 namespace ROOT {
-   // Wrappers around operator new
-   static void *new_TBRawRun(void *p) {
-      return  p ? new(p) ::TBRawRun : new ::TBRawRun;
-   }
-   static void *newArray_TBRawRun(Long_t nElements, void *p) {
-      return p ? new(p) ::TBRawRun[nElements] : new ::TBRawRun[nElements];
-   }
    // Wrapper around operator delete
    static void delete_TBRawRun(void *p) {
       delete ((::TBRawRun*)p);

@@ -47,12 +47,13 @@ class anaSum
     enum { minLength=7};
     enum { baseLineHalfWindow = 200 }; // even integer
 
-    anaSum(Int_t maxEvents = 0, TString tag = "MuTrigger");
+    anaSum(Int_t maxEvents = 0, TString tag = "9_25_2020");
     virtual ~anaSum() { ; }
     bool openFile();
     void analyze(Long64_t maxEvents);
 
     // summed wave histograms
+    TH1D *hSumWaveNorm[NDET];
     TH1D *hSumWave[NDET];
     TH1D *hSumEvent[NDET];
 
@@ -74,7 +75,10 @@ anaSum::anaSum(Int_t maxEvents, TString tag)
   int nsamples = (int) detList[0]->digi.size();
   cout << tag << " samples " << nsamples << endl;
 
-  for(unsigned id=0; id<NDET; ++id) hSumWave[id] = new TH1D(Form("SumWave%s",detList[id]->GetName()),Form("Sum Wave%s",detList[id]->GetName()), nsamples,0, nsamples);
+  for(unsigned id=0; id<NDET; ++id) {
+    hSumWave[id] = new TH1D(Form("SumWave%s",detList[id]->GetName()),Form("Sum Wave %s",detList[id]->GetName()), nsamples,0, nsamples);
+    hSumWaveNorm[id] = new TH1D(Form("SumWaveNorm%s",detList[id]->GetName()),Form("Sum Wave normalized %s",detList[id]->GetName()), nsamples,0, nsamples);
+  }
 
   analyze(maxEvents);
 
@@ -135,12 +139,14 @@ void anaSum::analyze(Long64_t nmax)
 
     for(unsigned id=0; id<NDET; ++id) {
       // get baseline copy vector to sort
-      vector<double> sdigi = detList[id]->digi;
+      vector<double> sdigi;
+      unsigned prePulse=800;
+      for (unsigned is=0; is<prePulse; ++is) sdigi.push_back(detList[id]->digi[is]);
       std::sort(sdigi.begin(), sdigi.end());
       double nsamples = (double) detList[id]->digi.size();
-      double baseline = sdigi[0.5*nsamples];
+      double baseline = sdigi[0.5*prePulse];
       double evSum=0;
-      //cout << " idet " << id << " baseline " << baseline << endl;
+      if(ievent==0) cout << " idet " << id << " baseline " << baseline << endl;
       for (int ibin=0; ibin < nsamples ; ++ibin) { 
         double qbin = vsign[id]*(detList[id]->digi[ibin] -  baseline);
         evSum += qbin;
@@ -148,17 +154,24 @@ void anaSum::analyze(Long64_t nmax)
       evSum /= double(nsamples);
       hSumEvent[id]->Fill(evSum);
       //cout << " idet " << id << " baseline " << baseline << endl;
-      if(evSum>0.5) {
-        for (int ibin=0; ibin < nsamples ; ++ibin) { 
-          double qbin = vsign[id]*(detList[id]->digi[ibin] -  baseline);
-          hSumWave[id]->SetBinContent(ibin, hSumWave[id]->GetBinContent(ibin)+qbin);
-          hSumWave[id]->SetBinError(ibin, sqrt(pow(hSumWave[id]->GetBinError(ibin), 2)+pow(qbin, 2)));
-        }
+      for (int ibin=0; ibin < nsamples ; ++ibin) { 
+        double qbin = vsign[id]*(detList[id]->digi[ibin] -  baseline);
+        //double qbin = detList[id]->digi[ibin] -  baseline;
+        hSumWave[id]->SetBinContent(ibin, hSumWave[id]->GetBinContent(ibin)+qbin);
+        hSumWave[id]->SetBinError(ibin, sqrt(pow(hSumWave[id]->GetBinError(ibin), 2)+pow(qbin, 2)));
       }
 
       //cout << ievent << "  " << id << " "   << detList[id]->GetName() << " " << evSum/double(nsamples) << endl;
     } // loop over dets
   } // sum over events
+  // normalize summed waveform
+  for(unsigned id=0; id<NDET; ++id) {
+    double nsamples = (double) detList[id]->digi.size();
+    for (int ibin=0; ibin < nsamples ; ++ibin) { 
+      hSumWaveNorm[id]->SetBinContent(ibin, hSumWave[id]->GetBinContent(ibin)/double(nentries));
+      hSumWaveNorm[id]->SetBinError(ibin, hSumWave[id]->GetBinError(ibin)/double(nentries));
+    }
+  }
 }
 
 bool  anaSum::openFile() 
