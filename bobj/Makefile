@@ -18,10 +18,11 @@ LIBS         :=  $(ROOTGLIBS) $(CINTFLAGS)
 ifeq ($(ARCH),macosx)
 				LIBRARY := lib$(LIBNAME).$(DllSuf)
 				LIBLINK := $(subst .$(DllSuf),.so,$(LIBRARY))
+				CXXFLAGS += -fPIC 
 else
 				LIBRARY := lib$(LIBNAME).so
 				LIBLINK :=
-				CXXFLAGS += -fPIC
+				CXXFLAGS += -fPIC 
 endif 
 
 
@@ -37,8 +38,8 @@ DICTS := $(filter-out $(SKIP_DICT), $(patsubst %.hxx,%_Dict.cxx,$(wildcard *.hxx
 all: lib 
 
 lib: $(DICTS) $(OBJS)
-	@echo "lib step $(LD) $(SOFLAGS) $(LIBS) $(OBJS) $(DICTS) -o $(LIBRARY) "
-	$(LD) $(SOFLAGS) $(CXXFLAGS) $(LIBS) $(OBJS) $(DICTS) -o $(LIBRARY) 
+	@echo "lib step $(LD) $(SOFLAGS) $(LIBS) $(OBJS) $(DICTS) -dynamiclib -install_name @executable_path/../bobj/$(LIBRARY) -o $(LIBRARY) ....  "
+	$(LD) $(SOFLAGS) $(CXXFLAGS) $(LIBS) $(OBJS) $(DICTS) -dynamiclib -install_name @executable_path/../bobj/$(LIBRARY) -o $(LIBRARY) 
 	@echo "$@ done"
 
 
@@ -57,6 +58,7 @@ CINTFLAGS   := -I$(ROOTSYS)/include -I/.
 .PHONY : clean show
 
 show: 
+	@echo LD =$(LD)
 	@echo sys =$(SYS)
 	@echo arch =$(ARCH)
 	@echo OBJS = $(OBJS)

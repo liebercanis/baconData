@@ -22,8 +22,11 @@ class TDet: public TNamed {
     Long64_t event;
     Int_t    flags;
     Int_t    nspe;
-    Double_t energy;
-    Double_t qsum;
+    Double_t qPrompt;
+    Double_t qSum;
+    Double_t hitPrompt;
+    Double_t hitSum;
+
     std::vector<TDetHit> hits; 
 
     unsigned nhits() { return hits.size(); }
@@ -33,12 +36,14 @@ class TDet: public TNamed {
       event=0;
       flags=0;
       nspe=0;
-      energy=0;
-      qsum=0;
+      qPrompt=0;
+      qSum=0;
+      hitPrompt=0;
+      hitSum=0;
       hits.clear();
     }
 
-    ClassDef(TDet,1)
+    ClassDef(TDet,2)
 };
 #endif
 

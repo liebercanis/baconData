@@ -25,9 +25,10 @@ TBRun::TBRun(TString runName ): TNamed(runName,runName)
 }
 
 // get det names from pre-existing btree
-TBRun::TBRun(TTree* btreeInit, TString runName )
+TBRun::TBRun(TTree* btreeInit, TString runName ): TNamed(runName,runName)
 {
-  btree = new TTree("BRunTree"," bacon data " );
+  TString brunName = TString("BRun"); 
+  btree = new TTree("BRunTree","bacon data" );
   bevent = new TBEvent(runName);
   btree->Branch("bev",&bevent);
   det0.SetName(Form("wave%i",1));
@@ -86,7 +87,7 @@ void TBRun::dumpEvent(ofstream& dumpFile) {
   dumpFile << bevent->event << " " << bevent->trigTime << endl;
 
   for(unsigned id=0; id<detList.size(); ++id)  {
-    dumpFile << id << " " <<  detList[id]->GetName() << " "  << detList[id]->hits.size() << " " << detList[id]->nspe << "  " << detList[id]->energy  << endl;
+    dumpFile << id << " " <<  detList[id]->GetName() << " "  << detList[id]->hits.size() << " " << detList[id]->nspe << "  " << detList[id]->qsum  << endl;
     for(unsigned ih=0; ih<detList[id]->hits.size(); ++ih)  {
       // these are all in a row 
       dumpFile << ih <<  " " 
