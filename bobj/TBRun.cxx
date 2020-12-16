@@ -87,7 +87,7 @@ void TBRun::dumpEvent(ofstream& dumpFile) {
   dumpFile << bevent->event << " " << bevent->trigTime << endl;
 
   for(unsigned id=0; id<detList.size(); ++id)  {
-    dumpFile << id << " " <<  detList[id]->GetName() << " "  << detList[id]->hits.size() << " " << detList[id]->nspe << "  " << detList[id]->qsum  << endl;
+    dumpFile << id << " " <<  detList[id]->GetName() << " "  << detList[id]->hits.size() << " " << detList[id]->nspe << "  " << detList[id]->qSum  << endl;
     for(unsigned ih=0; ih<detList[id]->hits.size(); ++ih)  {
       // these are all in a row 
       dumpFile << ih <<  " " 
