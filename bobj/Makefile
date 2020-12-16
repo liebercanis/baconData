@@ -38,8 +38,11 @@ DICTS := $(filter-out $(SKIP_DICT), $(patsubst %.hxx,%_Dict.cxx,$(wildcard *.hxx
 all: lib 
 
 lib: $(DICTS) $(OBJS)
-	@echo "lib step $(LD) $(SOFLAGS) $(LIBS) $(OBJS) $(DICTS) -dynamiclib -install_name @executable_path/../bobj/$(LIBRARY) -o $(LIBRARY) ....  "
-	$(LD) $(SOFLAGS) $(CXXFLAGS) $(LIBS) $(OBJS) $(DICTS) -dynamiclib -install_name @executable_path/../bobj/$(LIBRARY) -o $(LIBRARY) 
+	#@echo "lib step $(LD) $(SOFLAGS) $(LIBS) $(OBJS) $(DICTS) -dynamiclib -install_name @executable_path/../bobj/$(LIBRARY) -o $(LIBRARY) ....  "
+	#$(LD) $(SOFLAGS) $(CXXFLAGS) $(LIBS) $(OBJS) $(DICTS) -dynamiclib -install_name @executable_path/../bobj/$(LIBRARY) -o $(LIBRARY) 
+	@echo "lib step $(LD) $(SOFLAGS) $(LIBS) $(OBJS) $(DICTS)  -o $(LIBRARY) ....  "
+	$(LD) $(SOFLAGS) $(CXXFLAGS) $(LIBS) $(OBJS) $(DICTS) -o $(LIBRARY) 
+
 	@echo "$@ done"
 
 
