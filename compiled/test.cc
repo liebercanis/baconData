@@ -1,8 +1,9 @@
-//////////////////////////////////////////////////////////
 #include <iostream>
 #include <sstream>
 #include <unistd.h>
 #include <fstream>
+#include <stdio.h>  /* printf, fopen */
+#include <stdlib.h> /* exit, EXIT_FAILURE */
 
 int main(int argc, char* argv[])
 {
