@@ -1,4 +1,4 @@
-#include "anaRun.cc"
+#include "anaWRun.cc"
 int main(int argc, char* argv[])
 {
   cout << "executing " << argv[0] << endl;
@@ -12,6 +12,6 @@ int main(int argc, char* argv[])
   cout << argv[1] << endl;
   TString tag(argv[1]);
 
-  new anaRun(nevents,tag);
+  new anaWRun(nevents,tag);
   exit(0);
 }
