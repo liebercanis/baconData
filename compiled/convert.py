@@ -2,15 +2,13 @@
 import sys
 import os
 from subprocess import Popen, PIPE
-import matplotlib
-import matplotlib.pyplot as plt
-import numpy as np
-import math
 import pprint
 
 
 def main(args):
     """ run convertRaw """
+    myEnv = os.environ.copy()
+    print(myEnv)
     dirs = []
     p = os.listdir('data')
     print(p)
@@ -31,11 +29,12 @@ def main(args):
 
     print(" args ", args, " number of directories to convert  ", n)
     for i in range(0, n):
-        print(" run job %i %d", i, dirs[i])
-        process = Popen(['test', dirs[i]], stdout=PIPE, stderr=PIPE)
-        process.wait()
+        print(" run job %i ", i, " dir %d",dirs[i])
+        process = Popen(['convertRaw', dirs[i]], stdout=PIPE,stderr=PIPE, env=myEnv)
         stdout, stderr = process.communicate()
+        process.wait()
         print(stdout)
+        print(stderr)
 
 
 if __name__ == '__main__':
