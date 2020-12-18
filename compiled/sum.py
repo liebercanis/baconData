@@ -35,7 +35,7 @@ def main(args):
     print(" args ", args, " number of files to run   ", n)
 
     for i in range(0, n):
-        print(" run job %i ", i, " dir %d",tag[i])
+        print(" run job %i ", i, " tag %d",files[i])
         process = Popen(['sum', files[i]], stdout=PIPE,stderr=PIPE, env=myEnv)
         stdout, stderr = process.communicate()
         process.wait()
